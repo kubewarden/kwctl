@@ -35,6 +35,7 @@ use crate::utils::new_policy_execution_mode_from_str;
 
 mod annotate;
 mod backend;
+mod callback_handler;
 mod cli;
 mod completions;
 mod inspect;

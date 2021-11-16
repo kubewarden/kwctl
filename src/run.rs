@@ -3,13 +3,15 @@ use kube::Client;
 use policy_evaluator::{
     cluster_context::ClusterContext,
     constants::*,
-    policy_evaluator::{PolicyEvaluator, PolicyExecutionMode, ValidateRequest},
+    policy_evaluator::{PolicyExecutionMode, ValidateRequest},
+    policy_evaluator_builder::PolicyEvaluatorBuilder,
     policy_metadata::Metadata,
 };
 use policy_fetcher::{registry::config::DockerConfig, sources::Sources};
 use std::path::Path;
+use tokio::sync::oneshot;
 
-use crate::{backend::BackendDetector, pull, verify};
+use crate::{backend::BackendDetector, callback_handler::CallbackHandlerBuilder, pull, verify};
 
 pub(crate) async fn pull_and_run(
     uri: &str,
@@ -24,8 +26,8 @@ pub(crate) async fn pull_and_run(
 
     let policy = pull::pull(
         &uri,
-        docker_config,
-        sources,
+        docker_config.clone(),
+        sources.clone(),
         policy_fetcher::PullDestination::MainStore,
     )
     .await
@@ -61,25 +63,42 @@ pub(crate) async fn pull_and_run(
         &policy.local_path,
     )?;
 
-    let mut policy_evaluator = PolicyEvaluator::from_file(
-        policy_id,
-        &policy.local_path,
-        execution_mode,
-        settings.map_or(Ok(None), |settings| {
+    // This is a channel used to stop the tokio task that is run
+    // inside of the CallbackHandler
+    let (shutdown_channel_tx, shutdown_channel_rx) = oneshot::channel();
+
+    let mut callback_handler = CallbackHandlerBuilder::default()
+        .registry_config(sources.cloned(), docker_config.cloned())
+        .shutdown_channel(shutdown_channel_rx)
+        .build()?;
+    let callback_sender_channel = callback_handler.sender_channel();
+
+    // Spawn a new tokio task that can is used to compute asynchronous
+    // request sent by the policies via waPC host callback functions.
+    let callback_handle = tokio::spawn(async move {
+        callback_handler.loop_eval().await;
+    });
+
+    let mut policy_evaluator = PolicyEvaluatorBuilder::new(policy_id)
+        .policy_file(&policy.local_path)?
+        .execution_mode(execution_mode)
+        .settings(settings.map_or(Ok(None), |settings| {
             if settings.is_empty() {
                 Ok(None)
             } else {
                 serde_yaml::from_str(&settings)
             }
-        })?,
-    )
-    .map_err(|err| {
-        anyhow!(
-            "error creating policy evaluator for policy {}: {}",
-            uri,
-            err
-        )
-    })?;
+        })?)
+        .callback_channel(callback_sender_channel)
+        .build()
+        .map_err(|err| {
+            anyhow!(
+                "error creating policy evaluator for policy {}: {}",
+                uri,
+                err
+            )
+        })?;
+
     let req_obj = match request {
         serde_json::Value::Object(ref object) => {
             if object.get("kind").and_then(serde_json::Value::as_str) == Some("AdmissionReview") {
@@ -106,6 +125,15 @@ pub(crate) async fn pull_and_run(
     // evaluate request
     let response = policy_evaluator.validate(ValidateRequest::new(req_obj.clone()));
     println!("{}", serde_json::to_string(&response)?);
+
+    // The evaluation is done, we can shutdown the tokio task that is running
+    // the CallbackHandler
+    shutdown_channel_tx
+        .send(())
+        .map_err(|e| anyhow!("Error shutting down the CallbackHandler task: {:?}", e))?;
+    callback_handle
+        .await
+        .map_err(|e| anyhow!("Error waiting for the CallbackHandler task: {:?}", e))?;
 
     Ok(())
 }

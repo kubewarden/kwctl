@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use kubewarden_policy_sdk::metadata::ProtocolVersion;
 use policy_evaluator::{
-    policy_evaluator::{PolicyEvaluator, PolicyExecutionMode},
+    policy_evaluator::PolicyExecutionMode, policy_evaluator_builder::PolicyEvaluatorBuilder,
     policy_metadata::Metadata,
 };
 use std::path::{Path, PathBuf};
@@ -37,12 +37,11 @@ fn rego_policy_detector(wasm_path: PathBuf) -> Result<bool> {
 }
 
 fn kubewarden_protocol_detector(wasm_path: PathBuf) -> Result<ProtocolVersion> {
-    let mut policy_evaluator = PolicyEvaluator::from_file(
-        String::from(wasm_path.to_string_lossy()),
-        wasm_path.as_path(),
-        PolicyExecutionMode::KubewardenWapc,
-        None,
-    )?;
+    let mut policy_evaluator =
+        PolicyEvaluatorBuilder::new(String::from(wasm_path.to_string_lossy()))
+            .policy_file(wasm_path.as_path())?
+            .execution_mode(PolicyExecutionMode::KubewardenWapc)
+            .build()?;
     policy_evaluator
         .protocol_version()
         .map_err(|e| anyhow!("Cannot compute ProtocolVersion used by the policy: {:?}", e))
