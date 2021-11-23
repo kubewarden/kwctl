@@ -20,10 +20,9 @@ kube = "0.64.0"
 kubewarden-policy-sdk = "0.2.3"
 lazy_static = "1.4.0"
 mdcat = "0.22"
+policy-fetcher = { git = "https://github.com/kubewarden/policy-fetcher", tag = "v0.2.0" }
 #policy-evaluator = { git = "https://github.com/kubewarden/policy-evaluator", tag = "v0.2.4" }
-#policy-fetcher = { git = "https://github.com/kubewarden/policy-fetcher", tag = "v0.1.19" }
 policy-evaluator = { git = "https://github.com/flavio/policy-evaluator", branch = "oci-manifest-digest-callback" }
-policy-fetcher = { git = "https://github.com/flavio/policy-fetcher", branch = "expose-fetch-manifest-digest" }
 pretty-bytes = "0.2.2"
 prettytable-rs = "^0.8"
 pulldown-cmark = { version = "0.8", default-features = false }

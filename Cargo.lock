@@ -361,7 +361,7 @@ checksum = "d9df67f7bf9ef8498769f994239c45613ef0c5899415fb58e9add412d2c1a538"
 [[package]]
 name = "burrego"
 version = "0.1.2"
-source = "git+https://github.com/flavio/policy-evaluator?branch=oci-manifest-digest-callback#baf1489119fc5b682c97135d625302160501da5d"
+source = "git+https://github.com/flavio/policy-evaluator?branch=oci-manifest-digest-callback#56944cda561022435426949c7d524ea0cf7fd317"
 dependencies = [
  "anyhow",
  "base64 0.13.0",
@@ -2487,7 +2487,7 @@ dependencies = [
 [[package]]
 name = "policy-evaluator"
 version = "0.2.4"
-source = "git+https://github.com/flavio/policy-evaluator?branch=oci-manifest-digest-callback#baf1489119fc5b682c97135d625302160501da5d"
+source = "git+https://github.com/flavio/policy-evaluator?branch=oci-manifest-digest-callback#56944cda561022435426949c7d524ea0cf7fd317"
 dependencies = [
  "anyhow",
  "base64 0.13.0",
@@ -2514,7 +2514,7 @@ dependencies = [
 [[package]]
 name = "policy-fetcher"
 version = "0.2.0"
-source = "git+https://github.com/flavio/policy-fetcher?branch=expose-fetch-manifest-digest#84d74abc33e6a735dbd8a13e2a6d0a826a1c21ec"
+source = "git+https://github.com/kubewarden/policy-fetcher?tag=v0.2.0#2410d7a3d8711f37825d85a753fbcd9880bf2db2"
 dependencies = [
  "anyhow",
  "async-std",

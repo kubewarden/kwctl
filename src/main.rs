@@ -25,6 +25,7 @@ use tracing::debug;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::{fmt, EnvFilter};
 
+use policy_evaluator::callback_handler;
 use policy_evaluator::policy_evaluator::PolicyExecutionMode;
 use policy_fetcher::registry::config::{read_docker_config_json_file, DockerConfig};
 use policy_fetcher::sources::{read_sources_file, Sources};
@@ -35,7 +36,6 @@ use crate::utils::new_policy_execution_mode_from_str;
 
 mod annotate;
 mod backend;
-mod callback_handler;
 mod cli;
 mod completions;
 mod inspect;
