@@ -26,8 +26,8 @@ pub(crate) async fn pull_and_run(
 
     let policy = pull::pull(
         &uri,
-        docker_config.clone(),
-        sources.clone(),
+        docker_config,
+        sources,
         policy_fetcher::PullDestination::MainStore,
     )
     .await
