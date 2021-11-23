@@ -361,7 +361,7 @@ checksum = "d9df67f7bf9ef8498769f994239c45613ef0c5899415fb58e9add412d2c1a538"
 [[package]]
 name = "burrego"
 version = "0.1.2"
-source = "git+https://github.com/flavio/policy-evaluator?branch=oci-manifest-digest-callback#56944cda561022435426949c7d524ea0cf7fd317"
+source = "git+https://github.com/flavio/policy-evaluator?branch=oci-manifest-digest-callback#3b28af6f3cd8261de6396620ab552c2bdd3146fb"
 dependencies = [
  "anyhow",
  "base64 0.13.0",
@@ -2487,7 +2487,7 @@ dependencies = [
 [[package]]
 name = "policy-evaluator"
 version = "0.2.4"
-source = "git+https://github.com/flavio/policy-evaluator?branch=oci-manifest-digest-callback#56944cda561022435426949c7d524ea0cf7fd317"
+source = "git+https://github.com/flavio/policy-evaluator?branch=oci-manifest-digest-callback#3b28af6f3cd8261de6396620ab552c2bdd3146fb"
 dependencies = [
  "anyhow",
  "base64 0.13.0",
