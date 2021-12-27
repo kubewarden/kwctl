@@ -6,6 +6,12 @@ use serde_json::json;
 use std::{env, path::PathBuf};
 use url::Url;
 
+// is_sha uses regex pattern to match the truncated sha256sum upto a length of 12 characters
+pub(crate) fn is_sha(id: &str) -> bool {
+    let re = Regex::new(r"[A-Fa-f0-9]{12}").unwrap();
+    re.is_match(id) 
+}
+
 pub(crate) fn map_path_to_uri(uri: &str) -> Result<String> {
     let uri_has_schema = Regex::new(r"^\w+://").unwrap();
     if uri_has_schema.is_match(uri) {
@@ -23,6 +29,19 @@ pub(crate) fn map_path_to_uri(uri: &str) -> Result<String> {
             uri
         ))
     }
+}
+
+
+pub(crate) fn wasm_path_from_sha(sha: &str) -> Result<PathBuf> {
+    let policies = Store::default().list()?;
+            let policy = policies.iter().find(
+                |policy|  {
+                    let mut policy_sha = policy.digest().unwrap();
+                    policy_sha.truncate(12);
+                    policy_sha == *sha
+                })
+                .ok_or_else(|| anyhow!("Cannot find policy by sha '{}' inside of the local store.\nTry executing `kwctl pull on the URI`", sha))?;
+            Ok(policy.local_path.clone())
 }
 
 pub(crate) fn wasm_path(uri: &str) -> Result<PathBuf> {

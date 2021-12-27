@@ -319,7 +319,7 @@ async fn main() -> Result<()> {
         }
         Some("inspect") => {
             if let Some(matches) = matches.subcommand_matches("inspect") {
-                let uri = matches.value_of("uri").unwrap();
+                let uri = matches.value_of("id").unwrap();
                 let output = inspect::OutputType::try_from(matches.value_of("output"))?;
 
                 inspect::inspect(uri, output)?;

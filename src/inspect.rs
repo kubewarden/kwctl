@@ -5,12 +5,19 @@ use policy_evaluator::{
 };
 use prettytable::{format::FormatBuilder, Table};
 use pulldown_cmark::{Options, Parser};
-use std::convert::TryFrom;
+use std::{convert::TryFrom, path::PathBuf};
 use syntect::parsing::SyntaxSet;
 
-pub(crate) fn inspect(uri: &str, output: OutputType) -> Result<()> {
-    let uri = crate::utils::map_path_to_uri(uri)?;
-    let wasm_path = crate::utils::wasm_path(uri.as_str())?;
+pub(crate) fn inspect(id: &str, output: OutputType) -> Result<()> {
+    let wasm_path: PathBuf; 
+    let is_sha = crate::utils::is_sha(id);
+    println!("Is sha? {}", is_sha);
+    if is_sha {
+        wasm_path = crate::utils::wasm_path_from_sha(id)?;
+    } else {
+        let uri = crate::utils::map_path_to_uri(id)?;
+        wasm_path = crate::utils::wasm_path(uri.as_str())?;
+    }
     let printer = get_printer(output);
 
     let metadata = Metadata::from_path(&wasm_path)
@@ -19,7 +26,7 @@ pub(crate) fn inspect(uri: &str, output: OutputType) -> Result<()> {
         Some(metadata) => printer.print(&metadata),
         None => Err(anyhow!(
             "No Kubewarden metadata found inside of '{}'.\nPolicies can be annotated with the `kwctl annotate` command.",
-            uri
+            id
         )),
     }
 }
