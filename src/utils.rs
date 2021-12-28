@@ -31,6 +31,17 @@ pub(crate) fn map_path_to_uri(uri: &str) -> Result<String> {
     }
 }
 
+pub(crate) fn uri_from_sha(sha: &str) -> Result<String> {
+    let policies = Store::default().list()?;
+    let policy = policies.iter().find(
+        |policy|  {
+            let mut policy_sha = policy.digest().unwrap();
+            policy_sha.truncate(12);
+            policy_sha == *sha
+        })
+        .ok_or_else(|| anyhow!("Cannot find policy by sha '{}' inside of the local store.\nTry executing `kwctl pull on the URI`", sha))?;
+        Ok(policy.uri.clone())
+}
 
 pub(crate) fn wasm_path_from_sha(sha: &str) -> Result<PathBuf> {
     let policies = Store::default().list()?;
