@@ -11,7 +11,6 @@ use syntect::parsing::SyntaxSet;
 pub(crate) fn inspect(id: &str, output: OutputType) -> Result<()> {
     let wasm_path: PathBuf; 
     let is_sha = crate::utils::is_sha(id);
-    println!("Is sha? {}", is_sha);
     if is_sha {
         wasm_path = crate::utils::wasm_path_from_sha(id)?;
     } else {
