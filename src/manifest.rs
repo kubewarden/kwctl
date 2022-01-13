@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 use serde::{Deserialize, Serialize};
-use std::convert::TryFrom;
+use std::{convert::TryFrom, path::PathBuf};
 use validator::Validate;
 
 use policy_evaluator::policy_metadata::{Metadata, Rule};
@@ -52,23 +52,34 @@ struct ScaffoldData {
     settings: serde_yaml::Mapping,
 }
 
-pub(crate) fn manifest(uri: &str, resource_type: &str, settings: Option<String>) -> Result<()> {
-    let wasm_path = crate::utils::wasm_path(uri)?;
+pub(crate) fn manifest(id: &str, resource_type: &str, settings: Option<String>) -> Result<()> {
+    let wasm_path: PathBuf; 
+    let mut uri: String = id.to_string();
+
+    let is_sha = crate::utils::is_sha(id);
+    if is_sha {
+        uri = crate::utils::uri_from_sha(id)?;
+        wasm_path = crate::utils::wasm_path_from_sha(id)?;
+    } else {
+        let uri = crate::utils::map_path_to_uri(id)?;
+        wasm_path = crate::utils::wasm_path(uri.as_str())?;
+    }
     let metadata = Metadata::from_path(&wasm_path)?
         .ok_or_else(||
             anyhow!(
                 "No Kubewarden metadata found inside of '{}'.\nPolicies can be annotated with the `kwctl annotate` command.",
-                uri)
+                id)
         )?;
 
     let settings_yml: serde_yaml::Mapping =
         serde_yaml::from_str(&settings.unwrap_or_else(|| String::from("{}")))?;
 
     let scaffold_data = ScaffoldData {
-        uri: String::from(uri),
+        uri,
         metadata,
         settings: settings_yml,
     };
+
     let resource = match resource_type {
         "ClusterAdmissionPolicy" => ClusterAdmissionPolicy::try_from(scaffold_data),
         other => Err(anyhow!(
