@@ -1932,7 +1932,7 @@ dependencies = [
  "policy-fetcher 0.4.0",
  "pretty-bytes",
  "prettytable-rs",
- "pulldown-cmark",
+ "pulldown-cmark 0.9.1",
  "regex",
  "serde",
  "serde_json",
@@ -2077,7 +2077,7 @@ dependencies = [
  "image",
  "libc",
  "mime",
- "pulldown-cmark",
+ "pulldown-cmark 0.8.0",
  "shell-words",
  "syntect",
  "terminal_size",
@@ -2783,6 +2783,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "pulldown-cmark"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "34f197a544b0c9ab3ae46c359a7ec9cbbb5c7bf97054266fecb7ead794a181d6"
+dependencies = [
+ "bitflags",
+ "memchr",
+ "unicase 2.6.0",
+]
+
+[[package]]
 name = "quick-error"
 version = "1.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3374,13 +3385,13 @@ dependencies = [
 [[package]]
 name = "sigstore"
 version = "0.1.0"
-source = "git+https://github.com/kubewarden/sigstore-rs?branch=not-yet-merged-patches#6d3841465a06f7a153a26b6456e467216abd71a7"
+source = "git+https://github.com/sigstore/sigstore-rs?rev=35fcc0f0a643c42989d301d6940add98f6ca6b6e#35fcc0f0a643c42989d301d6940add98f6ca6b6e"
 dependencies = [
  "anyhow",
  "async-trait",
  "base64",
  "ecdsa",
- "oci-distribution 0.8.0",
+ "oci-distribution 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "olpc-cjson",
  "p256",
  "serde",
@@ -3393,13 +3404,13 @@ dependencies = [
 [[package]]
 name = "sigstore"
 version = "0.1.0"
-source = "git+https://github.com/sigstore/sigstore-rs?rev=35fcc0f0a643c42989d301d6940add98f6ca6b6e#35fcc0f0a643c42989d301d6940add98f6ca6b6e"
+source = "git+https://github.com/kubewarden/sigstore-rs?branch=not-yet-merged-patches#6d3841465a06f7a153a26b6456e467216abd71a7"
 dependencies = [
  "anyhow",
  "async-trait",
  "base64",
  "ecdsa",
- "oci-distribution 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "oci-distribution 0.8.0",
  "olpc-cjson",
  "p256",
  "serde",
