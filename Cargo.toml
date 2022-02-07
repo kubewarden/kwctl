@@ -16,7 +16,7 @@ clap = { version = "3.0.14", features = [ "cargo", "env" ] }
 clap_complete = "3.0.6"
 directories = "4.0.1"
 itertools = "0.10.1"
-k8s-openapi = { version = "0.13.0", default-features = false, features = ["v1_22"] }
+k8s-openapi = { version = "0.14.0", default-features = false, features = ["v1_22"] }
 kube = { version = "0.64.0", default-features = false, features = ["client", "rustls-tls"] }
 lazy_static = "1.4.0"
 mdcat = "0.25.1"
