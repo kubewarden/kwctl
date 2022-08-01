@@ -2145,7 +2145,7 @@ dependencies = [
  "tracing-futures",
  "tracing-subscriber",
  "url 2.2.2",
- "validator",
+ "validator 0.16.0",
  "walrus",
  "wasmparser 0.88.0",
 ]
@@ -3039,7 +3039,7 @@ dependencies = [
  "tracing",
  "tracing-futures",
  "url 2.2.2",
- "validator",
+ "validator 0.15.0",
  "wapc",
  "wasmparser 0.87.0",
  "wasmtime-provider",
@@ -4527,7 +4527,23 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "url 2.2.2",
- "validator_derive",
+ "validator_derive 0.15.0",
+]
+
+[[package]]
+name = "validator"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "32ad5bf234c7d3ad1042e5252b7eddb2c4669ee23f32c7dd0e9b7705f07ef591"
+dependencies = [
+ "idna 0.2.3",
+ "lazy_static",
+ "regex",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "url 2.2.2",
+ "validator_derive 0.16.0",
 ]
 
 [[package]]
@@ -4543,7 +4559,23 @@ dependencies = [
  "quote",
  "regex",
  "syn",
- "validator_types",
+ "validator_types 0.15.0",
+]
+
+[[package]]
+name = "validator_derive"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc44ca3088bb3ba384d9aecf40c6a23a676ce23e09bdaca2073d99c207f864af"
+dependencies = [
+ "if_chain",
+ "lazy_static",
+ "proc-macro-error",
+ "proc-macro2",
+ "quote",
+ "regex",
+ "syn",
+ "validator_types 0.16.0",
 ]
 
 [[package]]
@@ -4551,6 +4583,16 @@ name = "validator_types"
 version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d2ddf34293296847abfc1493b15c6e2f5d3cd19f57ad7d22673bf4c6278da329"
+dependencies = [
+ "proc-macro2",
+ "syn",
+]
+
+[[package]]
+name = "validator_types"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "111abfe30072511849c5910134e8baf8dc05de4c0e5903d681cbd5c9c4d611e3"
 dependencies = [
  "proc-macro2",
  "syn",
