@@ -231,11 +231,6 @@ jobs:
       with:
         name: kwctl-darwin-aarch64
 
-    - name: Download darwin-aarch64 binary
-      uses: actions/download-artifact@v2
-      with:
-        name: kwctl-darwin-aarch64
-
     - name: Publish darwin-x86_64 binary
       uses: actions/upload-release-asset@v1
       env:
