@@ -179,6 +179,7 @@ jobs:
       - build-linux-x86_64
       - build-linux-aarch64
       - build-darwin-x86_64
+      - build-darwin-aarch64
       - build-windows-x86_64
     steps:
     - name: Create Release
@@ -224,6 +225,17 @@ jobs:
       uses: actions/download-artifact@v2
       with:
         name: kwctl-darwin-x86_64
+
+    - name: Download darwin-aarch64 binary
+      uses: actions/download-artifact@v2
+      with:
+        name: kwctl-darwin-aarch64
+
+    - name: Download darwin-aarch64 binary
+      uses: actions/download-artifact@v2
+      with:
+        name: kwctl-darwin-aarch64
+
     - name: Publish darwin-x86_64 binary
       uses: actions/upload-release-asset@v1
       env:
@@ -232,6 +244,16 @@ jobs:
         upload_url: ${{ steps.create-release.outputs.upload_url }}
         asset_name: kwctl-darwin-x86_64.zip
         asset_path: kwctl-darwin-x86_64.zip
+        asset_content_type: application/zip
+
+    - name: Publish darwin-aarch64 binary
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create-release.outputs.upload_url }}
+        asset_name: kwctl-darwin-aarch64.zip
+        asset_path: kwctl-darwin-aarch64.zip
         asset_content_type: application/zip
 
     - name: Download windows-x86_64 binary
