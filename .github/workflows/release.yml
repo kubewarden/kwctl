@@ -81,6 +81,37 @@ jobs:
         name: kwctl-linux-aarch64
         path: kwctl-linux-aarch64.zip
 
+  build-darwin-aarch64:
+    name: Build darwin (aarch64) Apple Silicon binary
+    runs-on: macos-latest
+    permissions:
+      id-token: write
+    needs:
+      - ci
+    steps:
+    - uses: actions/checkout@v2
+    - uses: sigstore/cosign-installer@main
+    - name: Setup rust toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        target: aarch64-apple-darwin
+        override: true
+    - run: rustup target add aarch64-apple-darwin
+    - name: Build kwctl
+      run: cargo build --target=aarch64-apple-darwin --release
+    - run: mv target/aarch64-apple-darwin/release/kwctl kwctl-darwin-aarch64
+    - name: Sign kwctl
+      run: cosign sign-blob kwctl-darwin-aarch64 --output-certificate kwctl-darwin-aarch64.pem --output-signature kwctl-darwin-aarch64.sig
+      env:
+        COSIGN_EXPERIMENTAL: 1
+    - run: zip -j9 kwctl-darwin-aarch64.zip kwctl-darwin-aarch64 kwctl-darwin-aarch64.sig kwctl-darwin-aarch64.pem
+    - name: Upload binary
+      uses: actions/upload-artifact@v2
+      with:
+        name: kwctl-darwin-aarch64
+        path: kwctl-darwin-aarch64.zip
+
   build-darwin-x86_64:
     name: Build darwin (x86_64) binary
     runs-on: macos-latest
