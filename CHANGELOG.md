@@ -8,7 +8,8 @@
 - **deps:** update rust crate pulldown-cmark to 0.9.2
 
 ### Features
-- use docker_credential crate instead of DockerConfig
+- Use docker_credential crate instead of DockerConfig
+- Added CI Job to release Apple Silicon binary with the release GH Actions flow
 
 ### Pull Requests
 - Merge pull request [#277](https://github.com/kubewarden/kwctl/issues/277) from raulcabello/docker_credential
