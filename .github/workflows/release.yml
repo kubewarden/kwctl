@@ -128,8 +128,7 @@ jobs:
         with:
           name: kwctl-airgap-scripts
           path: |
-            scripts/kubewarden-load-policies.sh
-            scripts/kubewarden-save-policies.sh
+            scripts/airgap.sh
 
   build-darwin-binaries:
     name: Build darwin binary

@@ -19,13 +19,13 @@ jobs:
       - name: Install kwctl
         run: cargo install --path .
       - name: Save policies
-        run: ./scripts/kubewarden-save-policies.sh --policies-list e2e-tests/airgap/policies.txt --policies policies.tar.gz
+        run: ./scripts/airgap.sh pull --list e2e-tests/airgap/policies.json
       - name: Remove policies from store
         run: |
           kwctl rm registry://ghcr.io/kubewarden/tests/pod-privileged:v0.1.9
           kwctl rm https://github.com/kubewarden/pod-privileged-policy/releases/download/v0.1.6/policy.wasm
       - name: Load policies
-        run: ./scripts/kubewarden-load-policies.sh --policies policies.tar.gz --policies-list e2e-tests/airgap/policies.txt --registry localhost:5000 --sources-path e2e-tests/airgap/insecure.yml
+        run: ./scripts/airgap.sh push --list e2e-tests/airgap/policies.json --registry localhost:5000 --insecure
       - name: Verify policies in local registry
         run: |
           kwctl pull registry://localhost:5000/kubewarden/tests/pod-privileged:v0.1.9 --sources-path e2e-tests/airgap/insecure.yml
