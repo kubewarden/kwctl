@@ -3,9 +3,6 @@ set -eEuo pipefail
 
 # ==================================================================================================
 # TODO:
-# Questions:
-# - should I keep --registry for kubewarden-defaults chart (policyserver)?
-# - should I enable recommended policies by default?
 #
 # Review (Victor): https://github.com/kubewarden/kwctl/pull/375#discussion_r1048740479
 # current approach doesn't use the GH release files kubewarden-crds-1.2.3_kubewarden-defaults-1.2.8_kubewarden-controller-1.2.8_policylist.txt
@@ -225,7 +222,7 @@ function command_install {
    step 'Install kubewarden-defaults'
    dry helm install kubewarden-defaults "$(chart_file kubewarden-defaults)" -n kubewarden \
       --set "common.cattle.systemDefaultRegistry=$REGISTRY" \
-      --set recommendedPolicies.enabled=True \
+      --set recommendedPolicies.enabled=False \
       ${INSECURE:+--set policyServer.insecureSources[0]=$REGISTRY}
 }
 
