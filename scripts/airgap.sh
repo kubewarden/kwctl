@@ -98,7 +98,7 @@ function command_list {
    urls=$(curl "https://api.github.com/repos/kubewarden/helm-charts/releases/tags/kubewarden-defaults-$tag" | jq -er '.assets[].browser_download_url')
 
    # images
-   url=$(grep 'images.txt$' <<< "$urls")
+   url=$(grep 'images.txt$' <<< "$urls" | tail -1)
    images=$(curl "$url" | to_json 'images')
    if [ -v CERTMAN ]; then
       local cimages
@@ -107,7 +107,7 @@ function command_list {
    fi
 
    # policies
-   url=$(grep 'policylist.txt$' <<< "$urls")
+   url=$(grep 'policylist.txt$' <<< "$urls" | tail -1)
    policies=$(curl "$url" | to_json 'policies')
 
    # charts
