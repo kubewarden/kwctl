@@ -14,6 +14,7 @@ set -eEuo pipefail
 # fix https://docs.kubewarden.io/operator-manual/airgap/requirements
 # blogpost - https://github.com/kubewarden/kubewarden.io/pull/153
 # fix documentation - https://github.com/kubewarden/docs/pull/150
+# - get image / policy list from pulled charts?
 # ==================================================================================================
 
 
@@ -21,7 +22,7 @@ set -eEuo pipefail
 IMAGES_TAR="kubewarden-images.tar"
 POLICIES_TAR="kubewarden-policies.tar.gz"
 
-PROG=airgap
+PROG=$(basename "$0")
 USAGE="\
 Usage:  $PROG command [--parameters]
 
