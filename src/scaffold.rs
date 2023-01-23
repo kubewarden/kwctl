@@ -11,6 +11,9 @@ use policy_evaluator::policy_fetcher::verify::config::{
 };
 use policy_evaluator::policy_metadata::{Metadata, Rule};
 
+use jrsonnet_evaluator::State;
+use jrsonnet_stdlib::StateExt;
+
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ClusterAdmissionPolicy {
@@ -197,6 +200,41 @@ pub(crate) fn verification_config() -> Result<String> {
         serde_yaml::to_string(&kubewarden_verification_config)?
     ))
 }
+
+pub(crate) fn artifacthub() -> Result<String> {
+    let comment_header = r#"# Kubewarden Artifacthub Package config
+#
+# Use this config to submit the policy to https://artifacthub.io.
+#
+# This config can be saved to its default location with:
+#   kwctl scaffold artifacthub > artifacthub-pkg.yml "#
+        .to_string();
+
+    let s = State::default();
+	s.with_stdlib();
+
+	let v2 = s.evaluate_snippet("snip".to_owned(), "std.assertEqual(1, 1)");
+
+    println!("{:?}", v2.unwrap());
+
+    let kubewarden_artifacthub_pkg =
+        VersionedVerificationConfig::V1(LatestVerificationConfig {
+            all_of: Some(vec![Signature::GithubAction {
+                owner: "kubewarden".to_string(),
+                repo: None,
+                annotations: None,
+            }]),
+            any_of: None,
+        });
+
+    Ok(format!(
+        "{}\n{}",
+        comment_header,
+        serde_yaml::to_string(&kubewarden_artifacthub_pkg)?
+    ))
+}
+
+
 
 #[cfg(test)]
 mod tests {

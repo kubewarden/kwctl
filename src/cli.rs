@@ -454,6 +454,10 @@ pub fn build_cli() -> Command {
                         .about("Output a default Sigstore verification configuration file")
                 )
                 .subcommand(
+                    Command::new("artifacthub")
+                        .about("Output an artifacthub-pkg.yml file from a metadata.yml file")
+                )
+                .subcommand(
                     Command::new("manifest")
                         .about("Output a Kubernetes resource manifest")
                         .arg(

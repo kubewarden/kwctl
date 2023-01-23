@@ -298,6 +298,11 @@ async fn main() -> Result<()> {
                 }
             }
             if let Some(matches) = matches.subcommand_matches("scaffold") {
+                if let Some(_matches) = matches.subcommand_matches("artifacthub") {
+                    println!("{}", scaffold::artifacthub()?);
+                }
+            }
+            if let Some(matches) = matches.subcommand_matches("scaffold") {
                 if let Some(matches) = matches.subcommand_matches("manifest") {
                     let uri = matches.get_one::<String>("uri").unwrap();
                     let resource_type = matches.get_one::<String>("type").unwrap();
