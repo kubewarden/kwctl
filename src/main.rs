@@ -82,7 +82,11 @@ async fn main() -> Result<()> {
     let matches = cli::build_cli().get_matches();
 
     // setup logging
-    let level_filter = if matches.contains_id("verbose") {
+    let verbose = matches
+        .get_one::<bool>("verbose")
+        .unwrap_or(&false)
+        .to_owned();
+    let level_filter = if verbose {
         LevelFilter::DEBUG
     } else {
         LevelFilter::INFO
@@ -323,7 +327,18 @@ async fn main() -> Result<()> {
                     };
                     let policy_title = matches.get_one::<String>("title").cloned();
 
-                    scaffold::manifest(uri, resource_type, settings, policy_title)?;
+                    let allow_context_aware_resources = matches
+                        .get_one::<bool>("allow-context-aware")
+                        .unwrap_or(&false)
+                        .to_owned();
+
+                    scaffold::manifest(
+                        uri,
+                        resource_type.parse()?,
+                        settings.as_deref(),
+                        policy_title.as_deref(),
+                        allow_context_aware_resources,
+                    )?;
                 };
             }
             Ok(())
@@ -603,7 +618,15 @@ async fn parse_pull_and_run_settings(matches: &ArgMatches) -> Result<run::PullAn
         );
     }
 
-    let enable_wasmtime_cache = !matches.contains_id("disable-wasmtime-cache");
+    let enable_wasmtime_cache = !matches
+        .get_one::<bool>("disable-wasmtime-cache")
+        .unwrap_or(&false)
+        .to_owned();
+
+    let allow_context_aware_resources = matches
+        .get_one::<bool>("allow-context-aware")
+        .unwrap_or(&false)
+        .to_owned();
 
     Ok(run::PullAndRunSettings {
         uri: uri.to_owned(),
@@ -614,6 +637,7 @@ async fn parse_pull_and_run_settings(matches: &ArgMatches) -> Result<run::PullAn
         verified_manifest_digest,
         fulcio_and_rekor_data,
         enable_wasmtime_cache,
+        allow_context_aware_resources,
     })
 }
 

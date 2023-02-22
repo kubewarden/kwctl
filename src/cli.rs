@@ -27,7 +27,10 @@ pub fn build_cli() -> Command {
         .version(crate_version!())
         .author(crate_authors!())
         .about(crate_description!())
-        .arg(Arg::new("verbose").short('v').help("Increase verbosity"))
+        .arg(Arg::new("verbose")
+            .short('v')
+            .num_args(0)
+            .help("Increase verbosity"))
         .subcommand(
             Command::new("policies")
                 .about("Lists all downloaded policies")
@@ -380,8 +383,14 @@ pub fn build_cli() -> Command {
                 .arg(
                     Arg::new("disable-wasmtime-cache")
                     .long("disable-wasmtime-cache")
+                    .num_args(0)
                     .help("Turn off usage of wasmtime cache")
                 )
+                .arg(
+                    Arg::new("allow-context-aware")
+                    .long("allow-context-aware")
+                    .num_args(0)
+                    .help("Grant access to the Kubernetes resources defined inside of the policy's `contextAwareResources` section. Warning: review the list of resources carefully to avoid abuses. Disabled by default"))
                 .arg(
                     Arg::new("uri")
                         .required(true)
@@ -490,6 +499,11 @@ pub fn build_cli() -> Command {
                                 .value_name("VALUE")
                                 .help("Policy title")
                         )
+                        .arg(
+                            Arg::new("allow-context-aware")
+                            .long("allow-context-aware")
+                            .num_args(0)
+                            .help("Uses the policy metadata to define which Kubernetes resources can be accessed by the policy. Warning: review the list of resources carefully to avoid abuses. Disabled by default"))
                 )
         )
         .subcommand(
@@ -675,8 +689,14 @@ pub fn build_cli() -> Command {
                 .arg(
                     Arg::new("disable-wasmtime-cache")
                     .long("disable-wasmtime-cache")
+                    .num_args(0)
                     .help("Turn off usage of wasmtime cache")
                 )
+                .arg(
+                    Arg::new("allow-context-aware")
+                    .long("allow-context-aware")
+                    .num_args(0)
+                    .help("Grant access to the Kubernetes resources defined inside of the policy's `contextAwareResources` section. Warning: review the list of resources carefully to avoid abuses. Disabled by default"))
                 .arg(
                     Arg::new("uri")
                         .required(true)
