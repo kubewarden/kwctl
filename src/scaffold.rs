@@ -2,14 +2,15 @@ use anyhow::{anyhow, Result};
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 use policy_evaluator::validator::Validate;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
+use tracing::warn;
 
 use policy_evaluator::constants::KUBEWARDEN_ANNOTATION_POLICY_TITLE;
 use policy_evaluator::policy_fetcher::verify::config::{
     LatestVerificationConfig, Signature, VersionedVerificationConfig,
 };
-use policy_evaluator::policy_metadata::{Metadata, Rule};
+use policy_evaluator::policy_metadata::{ContextAwareResource, Metadata, Rule};
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -31,10 +32,16 @@ struct ClusterAdmissionPolicySpec {
     // This is needed as a temporary fix for https://github.com/kubewarden/kubewarden-controller/issues/395
     #[serde(skip_serializing_if = "is_true")]
     background_audit: bool,
+    #[serde(skip_serializing_if = "is_empty")]
+    context_aware_resources: HashSet<ContextAwareResource>,
 }
 
 fn is_true(b: &bool) -> bool {
     *b
+}
+
+fn is_empty(h: &HashSet<ContextAwareResource>) -> bool {
+    h.is_empty()
 }
 
 impl TryFrom<ScaffoldData> for ClusterAdmissionPolicy {
@@ -55,6 +62,7 @@ impl TryFrom<ScaffoldData> for ClusterAdmissionPolicy {
                 rules: data.metadata.rules.clone(),
                 mutating: data.metadata.mutating,
                 background_audit: data.metadata.background_audit,
+                context_aware_resources: data.metadata.context_aware_resources,
             },
         })
     }
@@ -118,6 +126,7 @@ pub(crate) fn manifest(
     resource_type: &str,
     settings: Option<String>,
     policy_title: Option<String>,
+    allow_context_aware_resources: bool,
 ) -> Result<()> {
     let wasm_path = crate::utils::wasm_path(uri)?;
     let metadata = Metadata::from_path(&wasm_path)?
@@ -130,7 +139,7 @@ pub(crate) fn manifest(
     let settings_yml: serde_yaml::Mapping =
         serde_yaml::from_str(&settings.unwrap_or_else(|| String::from("{}")))?;
 
-    let scaffold_data = ScaffoldData {
+    let mut scaffold_data = ScaffoldData {
         uri: String::from(uri),
         policy_title: get_policy_title_from_cli_or_metadata(policy_title, &metadata),
         metadata,
@@ -138,6 +147,21 @@ pub(crate) fn manifest(
     };
     let resource = match resource_type {
         "ClusterAdmissionPolicy" => {
+            if !scaffold_data.metadata.context_aware_resources.is_empty() {
+                if allow_context_aware_resources {
+                    warn!(
+                        "Policy has been granted access to the Kubernetes resources mentioned by its metadata."
+                    );
+                    warn!("Carefully review the contents of the `contextAwareResources` attribute for abuses.");
+                } else {
+                    warn!("Policy requires access to Kubernetes resources at evaluation time. For safety resons, the `contextAwareResources` attribute has been left empty.");
+                    warn!("Carefully review which types of Kubernetes resources the policy needs via the `inspect` command an populate the `contextAwareResources` accordingly.");
+                    warn!("Otherwise, invoke the `scaffold` command using the `--allow-context-aware` flag.");
+
+                    scaffold_data.metadata.context_aware_resources = HashSet::new();
+                }
+            }
+
             serde_yaml::to_value(ClusterAdmissionPolicy::try_from(scaffold_data)?)
                 .map_err(|e| anyhow!("{}", e))
         }
@@ -212,6 +236,7 @@ pub(crate) fn verification_config() -> Result<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashSet;
 
     fn mock_metadata_with_no_annotations() -> Metadata {
         Metadata {
@@ -220,7 +245,7 @@ mod tests {
             annotations: None,
             mutating: false,
             background_audit: true,
-            context_aware: false,
+            context_aware_resources: HashSet::new(),
             execution_mode: Default::default(),
         }
     }
@@ -235,7 +260,7 @@ mod tests {
             )])),
             mutating: false,
             background_audit: true,
-            context_aware: false,
+            context_aware_resources: HashSet::new(),
             execution_mode: Default::default(),
         }
     }
