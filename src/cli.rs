@@ -27,7 +27,10 @@ pub fn build_cli() -> Command {
         .version(crate_version!())
         .author(crate_authors!())
         .about(crate_description!())
-        .arg(Arg::new("verbose").short('v').help("Increase verbosity"))
+        .arg(Arg::new("verbose")
+            .short('v')
+            .num_args(0)
+            .help("Increase verbosity"))
         .subcommand(
             Command::new("policies")
                 .about("Lists all downloaded policies")
@@ -380,6 +383,7 @@ pub fn build_cli() -> Command {
                 .arg(
                     Arg::new("disable-wasmtime-cache")
                     .long("disable-wasmtime-cache")
+                    .num_args(0)
                     .help("Turn off usage of wasmtime cache")
                 )
                 .arg(
@@ -675,6 +679,7 @@ pub fn build_cli() -> Command {
                 .arg(
                     Arg::new("disable-wasmtime-cache")
                     .long("disable-wasmtime-cache")
+                    .num_args(0)
                     .help("Turn off usage of wasmtime cache")
                 )
                 .arg(
