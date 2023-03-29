@@ -50,4 +50,4 @@ reqwest = { version = "0", default-features = false, features = ["rustls-tls-nat
 
 [dev-dependencies]
 rstest = "0.17.0"
-tempfile = "3.4.0"
+tempfile = "3.5.0"
