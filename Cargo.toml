@@ -23,7 +23,7 @@ pem = "3"
 pulldown-cmark-mdcat = { version = "2.2.0", default-features = false, features = [
   "regex-fancy",
 ] }
-policy-evaluator = { git = "https://github.com/kubewarden/policy-evaluator", tag = "v0.18.3" }
+policy-evaluator = { git = "https://github.com/kubewarden/policy-evaluator", tag = "v0.18.4" }
 rustls-pki-types = { version = "1", features = ["alloc"] }
 prettytable-rs = "^0.10"
 pulldown-cmark = { version = "0.9.3", default-features = false }
@@ -55,8 +55,10 @@ reqwest = { version = "0", default-features = false, features = [
 ] }
 
 [dev-dependencies]
-rstest = "0.22.0"
-tempfile = "3.12.0"
 assert_cmd = "2.0.14"
-predicates = "3.1.0"
+hyper = { version = "1.2.0" }
+predicates = "3.1"
+rstest = "0.22.0"
+tempfile = "3.12"
 testcontainers = { version = "0.21", features = ["blocking"] }
+tower-test = "0.4"
