@@ -32,7 +32,7 @@ lazy_static! {
 
 const FALLBACK_API_RESOURCE_PLURAL_NAME: &str = "this-is-the-plural-name-of-the-resource-this-information-is-not-used-by-policies-and-requires-a-connection-to-an-api-server-to-be-obtained";
 
-/// Types of AdmissionRequest operation we can scaffolf
+/// Types of AdmissionRequest operation we can scaffold
 pub(crate) enum Operation {
     Create,
     Update,

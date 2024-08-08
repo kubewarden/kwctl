@@ -321,7 +321,7 @@ In order to verify kwctl you need cosign installed, and then execute the followi
 ```
 cosign verify-blob \
   --signature kwctl-linux-x86_64.sig \
-  --cert kwctl-linux-x86_64.pem kwctl-linux-x86_64
+  --cert kwctl-linux-x86_64.pem kwctl-linux-x86_64 \
   --certificate-identity-regexp 'https://github.com/kubewarden/*' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
