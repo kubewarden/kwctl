@@ -86,12 +86,12 @@ impl ApiResourceCatalog {
     /// Create a new catalog. The function will try to load the catalog from disk, if it fails
     /// it will build it by querying the Kubernetes API server.
     /// If querying the API server fails, the function will return an empty catalog.
-    pub async fn new<F, Fut>(resource_catalog_file: PathBuf, build_kubeclient: F) -> Self
+    pub async fn new<F, Fut>(resource_catalog_file: PathBuf, build_kubeclient_fn: F) -> Self
     where
         F: FnOnce() -> Fut + Clone,
         Fut: Future<Output = Result<kube::Client>>,
     {
-        match Self::init(resource_catalog_file, build_kubeclient).await {
+        match Self::init(resource_catalog_file, build_kubeclient_fn).await {
             Ok(catalog) => catalog,
             Err(err) => {
                 warn!(?err, "Failed to load resource catalog");
@@ -103,7 +103,7 @@ impl ApiResourceCatalog {
         }
     }
 
-    async fn init<F, Fut>(catalog_path: PathBuf, build_kubeclient: F) -> Result<Self>
+    async fn init<F, Fut>(catalog_path: PathBuf, build_kubeclient_fn: F) -> Result<Self>
     where
         F: FnOnce() -> Fut + Clone,
         Fut: Future<Output = Result<kube::Client>>,
@@ -115,7 +115,7 @@ impl ApiResourceCatalog {
             Ok(catalog)
         } else {
             info!("Resource catalog not found, building it");
-            let client = build_kubeclient().await?;
+            let client = build_kubeclient_fn().await?;
             let catalog = Self::build(client).await?;
             if let Err(err) = catalog.save(catalog_path) {
                 warn!(?err, "Failed to save resource catalog");
@@ -205,14 +205,14 @@ impl ApiResourceCatalog {
 
     /// Refresh the catalog by querying the Kubernetes API server.
     /// This applies only if the catalog was built from the cache.
-    pub async fn refresh<F, Fut>(&mut self, build_kubeclient: F) -> Result<()>
+    pub async fn refresh<F, Fut>(&mut self, build_kubeclient_fn: F) -> Result<()>
     where
         F: FnOnce() -> Fut + Clone,
         Fut: Future<Output = Result<kube::Client>>,
     {
         match self.restored_from {
             ApiResourceCatalogRestoredFrom::Cache => {
-                let client = build_kubeclient().await?;
+                let client = build_kubeclient_fn().await?;
                 let fresh_catalog = Self::build(client).await?;
 
                 self.resources.clear();
@@ -241,7 +241,7 @@ impl ApiResourceCatalog {
 // The scaffold command must be snappy, we don't want it to get stuck
 // waiting for the connection to Kubernetes to be established.
 // Because of that we set a connection timeout of 1 second.
-async fn kube_client() -> Result<kube::Client> {
+async fn build_kube_client() -> Result<kube::Client> {
     let mut config = kube::Config::infer().await?;
     config.connect_timeout = Some(std::time::Duration::from_secs(1));
     let client = kube::Client::try_from(config)?;
@@ -259,7 +259,7 @@ pub(crate) async fn admission_request(
         Operation::Create => {
             scaffold_create(
                 RESOURCE_CATALOG_FILE.to_path_buf(),
-                kube_client,
+                build_kube_client,
                 object.unwrap(),
             )
             .await?
@@ -556,9 +556,9 @@ mod tests {
         let (mocksvc, handle) = tower_test::mock::pair::<Request<Body>, Response<Body>>();
         handle_discovery(handle).await;
 
-        let build_kubeclient = || async { Ok(kube::Client::new(mocksvc, "default")) };
+        let build_mock_kube_client = || async { Ok(kube::Client::new(mocksvc, "default")) };
 
-        let catalog = ApiResourceCatalog::init(catalog_file.clone(), build_kubeclient)
+        let catalog = ApiResourceCatalog::init(catalog_file.clone(), build_mock_kube_client)
             .await
             .expect("catalog creation failed");
 
@@ -613,9 +613,9 @@ mod tests {
         let (mocksvc, handle) = tower_test::mock::pair::<Request<Body>, Response<Body>>();
         expect_no_request(handle).await;
 
-        let build_kubeclient = || async { Ok(kube::Client::new(mocksvc, "default")) };
+        let build_mock_kube_client = || async { Ok(kube::Client::new(mocksvc, "default")) };
 
-        let catalog = ApiResourceCatalog::init(catalog_file.clone(), build_kubeclient)
+        let catalog = ApiResourceCatalog::init(catalog_file.clone(), build_mock_kube_client)
             .await
             .expect("catalog creation failed");
 
@@ -769,10 +769,10 @@ mod tests {
         let (mocksvc, handle) = tower_test::mock::pair::<Request<Body>, Response<Body>>();
         scenario(handle).await;
 
-        let build_kubeclient = || async { Ok(kube::Client::new(mocksvc, "default")) };
+        let build_mock_kube_client = || async { Ok(kube::Client::new(mocksvc, "default")) };
         let output = scaffold_create(
             catalog_filepath.clone(),
-            build_kubeclient,
+            build_mock_kube_client,
             object_filepath.clone(),
         )
         .await
