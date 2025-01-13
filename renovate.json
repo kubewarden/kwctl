@@ -29,12 +29,13 @@
         "*"
       ],
       "automerge": true,
-      "schedule": ["* 0-3 * * *"]
+      "semanticCommits": "enabled",
+      "semanticCommitType": "build"
     }
   ],
   "rebaseWhen": "behind-base-branch",
   "prHourlyLimit": 0,
   "prConcurrentLimit": 0,
   "semanticCommits": "enabled",
-  "semanticCommitType": "chore"
+  "semanticCommitType": "build"
 }
