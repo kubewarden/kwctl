@@ -5,7 +5,9 @@ use std::{
 
 use anyhow::Result;
 use common::{setup_command, test_data};
-use policy_evaluator::{policy_fetcher, policy_metadata};
+use policy_evaluator::{
+    kubewarden_policy_sdk::crd::policies::admission_policy, policy_fetcher, policy_metadata,
+};
 use predicates::{prelude::*, str::contains, str::is_empty};
 use rstest::rstest;
 use tempfile::tempdir;
@@ -100,7 +102,7 @@ fn test_pull_registry_no_tag() {
 #[case::rejected("privileged-pod.json", false)]
 #[case::admission_review_allowed("unprivileged-pod-admission-review.json", true)]
 #[case::admission_review_rejected("privileged-pod-admission-review.json", false)]
-fn test_run(#[case] request: &str, #[case] allowed: bool) {
+fn test_run_individual_policy_from_cli(#[case] request: &str, #[case] allowed: bool) {
     let tempdir = tempdir().unwrap();
     pull_policies(tempdir.path(), POLICIES);
 
@@ -113,6 +115,135 @@ fn test_run(#[case] request: &str, #[case] allowed: bool) {
     cmd.assert().success();
     cmd.assert()
         .stdout(contains(format!("\"allowed\":{}", allowed)));
+}
+
+#[rstest]
+#[case::allowed("unprivileged-pod.json", true)]
+#[case::rejected("privileged-pod.json", false)]
+#[case::admission_review_allowed("unprivileged-pod-admission-review.json", true)]
+#[case::admission_review_rejected("privileged-pod-admission-review.json", false)]
+fn test_run_individual_policy_from_crd(#[case] request: &str, #[case] allowed: bool) {
+    let tempdir = tempdir().expect("cannot create tempdir");
+    pull_policies(tempdir.path(), POLICIES);
+
+    let crd = admission_policy::AdmissionPolicy {
+        metadata: k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+            name: Some("pod-privileged-policy".to_string()),
+            ..Default::default()
+        },
+        spec: Some(admission_policy::AdmissionPolicySpec {
+            module: "registry://ghcr.io/kubewarden/tests/pod-privileged:v0.2.5".to_string(),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    let crd_path = tempdir.path().join("pod-privileged-policy.yaml");
+    std::fs::write(
+        &crd_path,
+        serde_yaml::to_string(&crd).expect("cannot serialize CRD"),
+    )
+    .expect("cannot write CRD to file");
+
+    let mut cmd = setup_command(tempdir.path());
+    cmd.arg("run")
+        .arg("--crd")
+        .arg(crd_path)
+        .arg("--request-path")
+        .arg(test_data(request));
+
+    cmd.assert().success();
+    cmd.assert()
+        .stdout(contains(format!("\"allowed\":{}", allowed)));
+}
+
+#[test]
+fn test_run_multiple_policies_from_crd() {
+    use serde::Serialize;
+
+    let tempdir = tempdir().expect("cannot create tempdir");
+    pull_policies(tempdir.path(), POLICIES);
+
+    let mut serializer = serde_yaml::Serializer::new(vec![]);
+    for i in 1..3 {
+        let crd = admission_policy::AdmissionPolicy {
+            metadata: k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+                name: Some(format!("pod-privileged-policy-{}", i)),
+                ..Default::default()
+            },
+            spec: Some(admission_policy::AdmissionPolicySpec {
+                module: "registry://ghcr.io/kubewarden/tests/pod-privileged:v0.2.5".to_string(),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        crd.serialize(&mut serializer)
+            .expect("cannot serialize CRD");
+    }
+    let crd_path = tempdir.path().join("multiple-policies.yaml");
+    std::fs::write(
+        &crd_path,
+        serializer.into_inner().expect("cannot serialize CRD doc"),
+    )
+    .expect("cannot write CRD to file");
+
+    let mut cmd = setup_command(tempdir.path());
+    cmd.arg("run")
+        .arg("--crd")
+        .arg(crd_path)
+        .arg("--request-path")
+        .arg(test_data("unprivileged-pod.json"));
+
+    cmd.assert().success();
+    cmd.assert()
+        .stdout(contains(format!("\"allowed\":{}", true)));
+    cmd.assert()
+        .stderr(contains("Multiple policies defined inside of the CRD file. All of them will run sequentially using the same settings and request."));
+}
+
+#[test]
+fn test_run_cannot_mix_crd_and_uri() {
+    let tempdir = tempdir().expect("cannot create tempdir");
+    pull_policies(tempdir.path(), POLICIES);
+
+    let crd = admission_policy::AdmissionPolicy {
+        metadata: k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+            name: Some("pod-privileged-policy".to_string()),
+            ..Default::default()
+        },
+        spec: Some(admission_policy::AdmissionPolicySpec {
+            module: "registry://ghcr.io/kubewarden/tests/pod-privileged:v0.2.5".to_string(),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    let crd_path = tempdir.path().join("pod-privileged-policy.yaml");
+    std::fs::write(
+        &crd_path,
+        serde_yaml::to_string(&crd).expect("cannot serialize CRD"),
+    )
+    .expect("cannot write CRD to file");
+
+    let mut cmd = setup_command(tempdir.path());
+    cmd.arg("run")
+        .arg("--crd")
+        .arg(crd_path)
+        .arg("--request-path")
+        .arg(test_data("unprivileged-pod.json"))
+        .arg("registry://ghcr.io/kubewarden/tests/pod-privileged:v0.2.5");
+
+    cmd.assert().failure();
+}
+
+#[test]
+fn test_run_must_provide_either_crd_or_uri() {
+    let tempdir = tempdir().expect("cannot create tempdir");
+
+    let mut cmd = setup_command(tempdir.path());
+    cmd.arg("run")
+        .arg("--request-path")
+        .arg(test_data("unprivileged-pod.json"));
+
+    cmd.assert().failure();
 }
 
 #[rstest]

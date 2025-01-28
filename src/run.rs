@@ -1,29 +1,15 @@
 use anyhow::{anyhow, Result};
 use policy_evaluator::{
-    admission_request::AdmissionRequest,
-    constants::*,
-    evaluation_context::EvaluationContext,
-    kube,
-    policy_evaluator::{PolicyEvaluator, PolicyExecutionMode, PolicySettings, ValidateRequest},
-    policy_evaluator_builder::PolicyEvaluatorBuilder,
-    policy_fetcher::{sigstore::trust::ManualTrustRoot, sources::Sources, PullDestination},
-    policy_metadata::{ContextAwareResource, Metadata, PolicyType},
+    policy_evaluator::PolicyExecutionMode,
+    policy_metadata::{Metadata, PolicyType},
 };
-use std::collections::BTreeSet;
-use std::{
-    net::{Ipv4Addr, Ipv6Addr},
-    path::Path,
-    sync::Arc,
-};
-use tokio::sync::oneshot;
-use tracing::{error, info, warn};
+use std::path::Path;
 
-use crate::{
-    backend::has_minimum_kubewarden_version,
-    backend::BackendDetector,
-    callback_handler::{CallbackHandler, ProxyMode},
-    pull, verify,
-};
+use crate::{backend::BackendDetector, run::policy_definition::PolicyDefinition};
+
+pub(crate) mod evaluator;
+pub(crate) mod local_data;
+pub(crate) mod policy_definition;
 
 #[derive(Default)]
 pub(crate) enum HostCapabilitiesMode {
@@ -32,186 +18,8 @@ pub(crate) enum HostCapabilitiesMode {
     Proxy(crate::callback_handler::ProxyMode),
 }
 
-#[derive(Default)]
-pub(crate) struct PullAndRunSettings {
-    pub uri: String,
-    pub user_execution_mode: Option<PolicyExecutionMode>,
-    pub sources: Option<Sources>,
-    pub request: String,
-    pub raw: bool,
-    pub settings: Option<String>,
-    pub verified_manifest_digest: Option<String>,
-    pub sigstore_trust_root: Option<Arc<ManualTrustRoot<'static>>>,
-    pub enable_wasmtime_cache: bool,
-    pub allow_context_aware_resources: bool,
-    pub host_capabilities_mode: HostCapabilitiesMode,
-}
-
-pub(crate) struct RunEnv {
-    pub policy_evaluator: PolicyEvaluator,
-    pub policy_settings: PolicySettings,
-    pub request: ValidateRequest,
-    pub callback_handler: CallbackHandler,
-    pub callback_handler_shutdown_channel_tx: oneshot::Sender<()>,
-}
-
-pub(crate) async fn prepare_run_env(cfg: &PullAndRunSettings) -> Result<RunEnv> {
-    let sources = cfg.sources.as_ref();
-
-    let policy = pull::pull(&cfg.uri, sources, PullDestination::MainStore)
-        .await
-        .map_err(|e| anyhow!("error pulling policy {}: {}", &cfg.uri, e))?;
-
-    if let Some(digest) = cfg.verified_manifest_digest.as_ref() {
-        verify::verify_local_checksum(&policy, sources, digest, cfg.sigstore_trust_root.clone())
-            .await?
-    }
-
-    let metadata = Metadata::from_path(&policy.local_path)?;
-    has_minimum_kubewarden_version(metadata.as_ref())?;
-
-    let policy_id =
-        read_policy_title_from_metadata(metadata.as_ref()).unwrap_or_else(|| cfg.uri.clone());
-
-    let req_obj = serde_json::from_str::<serde_json::Value>(&cfg.request)?;
-
-    let execution_mode = determine_execution_mode(
-        metadata.clone(),
-        cfg.user_execution_mode,
-        BackendDetector::default(),
-        &policy.local_path,
-    )?;
-
-    let context_aware_allowed_resources = compute_context_aware_resources(metadata.as_ref(), cfg);
-
-    let kube_client = if context_aware_allowed_resources.is_empty() {
-        None
-    } else {
-        match &cfg.host_capabilities_mode {
-            HostCapabilitiesMode::Proxy(ProxyMode::Replay { source: _ }) => None,
-            _ => Some(build_kube_client().await?),
-        }
-    };
-
-    let policy_settings: PolicySettings = match cfg.settings.as_ref() {
-        None => Ok(PolicySettings::default()),
-        Some(settings) => {
-            if settings.is_empty() {
-                Ok(PolicySettings::default())
-            } else {
-                serde_yaml::from_str(settings)
-            }
-        }
-    }?;
-
-    // This is a channel used to stop the tokio task that is run
-    // inside of the CallbackHandler
-    let (callback_handler_shutdown_channel_tx, callback_handler_shutdown_channel_rx) =
-        oneshot::channel();
-
-    let callback_handler =
-        CallbackHandler::new(cfg, kube_client, callback_handler_shutdown_channel_rx).await?;
-
-    let callback_sender_channel = callback_handler.sender_channel();
-
-    let mut policy_evaluator_builder = PolicyEvaluatorBuilder::new()
-        .policy_file(&policy.local_path)?
-        .execution_mode(execution_mode);
-    if cfg.enable_wasmtime_cache {
-        policy_evaluator_builder = policy_evaluator_builder.enable_wasmtime_cache();
-    }
-
-    let eval_ctx = EvaluationContext {
-        policy_id: policy_id.to_owned(),
-        callback_channel: Some(callback_sender_channel.clone()),
-        ctx_aware_resources_allow_list: context_aware_allowed_resources.clone(),
-    };
-    let policy_evaluator = policy_evaluator_builder.build_pre()?.rehydrate(&eval_ctx)?;
-
-    let request = if cfg.raw || has_raw_policy_type(metadata.as_ref()) {
-        ValidateRequest::Raw(req_obj)
-    } else {
-        let req_obj = match req_obj.clone() {
-            serde_json::Value::Object(object) => {
-                if object.get("kind").and_then(serde_json::Value::as_str) == Some("AdmissionReview")
-                {
-                    object
-                        .get("request")
-                        .cloned()
-                        .ok_or_else(|| anyhow!("invalid admission review object"))
-                } else {
-                    Ok(req_obj)
-                }
-            }
-            _ => Err(anyhow!("request to evaluate is invalid")),
-        }?;
-        let adm_req: AdmissionRequest = serde_json::from_value(req_obj)
-            .map_err(|e| anyhow!("cannot build AdmissionRequest object from given input: {e}"))?;
-        ValidateRequest::AdmissionRequest(adm_req)
-    };
-
-    Ok(RunEnv {
-        policy_evaluator,
-        policy_settings,
-        request,
-        callback_handler,
-        callback_handler_shutdown_channel_tx,
-    })
-}
-
-pub(crate) async fn pull_and_run(cfg: &PullAndRunSettings) -> Result<()> {
-    let run_env = prepare_run_env(cfg).await?;
-    let mut policy_evaluator = run_env.policy_evaluator;
-    let mut callback_handler = run_env.callback_handler;
-    let callback_handler_shutdown_channel_tx = run_env.callback_handler_shutdown_channel_tx;
-
-    // validate the settings given by the user
-    let settings_validation_response = policy_evaluator.validate_settings(&run_env.policy_settings);
-    if !settings_validation_response.valid {
-        return Err(anyhow!(
-            "Provided settings are not valid: {:?}",
-            settings_validation_response.message.unwrap_or_default()
-        ));
-    }
-
-    // Spawn the tokio task used by the CallbackHandler
-    let callback_handle = tokio::spawn(async move {
-        callback_handler.loop_eval().await;
-    });
-
-    // evaluate request
-    let response = tokio::task::block_in_place(move || {
-        policy_evaluator.validate(run_env.request, &run_env.policy_settings)
-    });
-
-    println!("{}", serde_json::to_string(&response)?);
-
-    // The evaluation is done, we can shutdown the tokio task that is running
-    // the CallbackHandler
-    if callback_handler_shutdown_channel_tx.send(()).is_err() {
-        error!("Cannot shut down the CallbackHandler task");
-    } else if let Err(e) = callback_handle.await {
-        error!(
-            error = e.to_string().as_str(),
-            "Error waiting for the CallbackHandler task"
-        );
-    }
-
-    Ok(())
-}
-
-fn read_policy_title_from_metadata(metadata: Option<&Metadata>) -> Option<String> {
-    match metadata {
-        Some(metadata) => match metadata.annotations {
-            Some(ref annotations) => annotations.get(KUBEWARDEN_ANNOTATION_POLICY_TITLE).cloned(),
-            None => None,
-        },
-        None => None,
-    }
-}
-
 fn determine_execution_mode(
-    metadata: Option<Metadata>,
+    metadata: Option<&Metadata>,
     user_execution_mode: Option<PolicyExecutionMode>,
     backend_detector: BackendDetector,
     wasm_path: &Path,
@@ -305,60 +113,6 @@ fn has_raw_policy_type(metadata: Option<&Metadata>) -> bool {
     }
 }
 
-fn compute_context_aware_resources(
-    metadata: Option<&Metadata>,
-    cfg: &PullAndRunSettings,
-) -> BTreeSet<ContextAwareResource> {
-    match metadata {
-        None => {
-            info!("Policy is not annotated, access to Kubernetes resources is not allowed");
-            BTreeSet::new()
-        }
-        Some(metadata) => {
-            if metadata.context_aware_resources.is_empty() {
-                return BTreeSet::new();
-            }
-
-            if cfg.allow_context_aware_resources {
-                warn!("Policy has been granted access to the Kubernetes resources mentioned by its metadata");
-                metadata.context_aware_resources.clone()
-            } else {
-                warn!("Policy requires access to Kubernetes resources at evaluation time. During this execution the access to Kubernetes resources is denied. This can cause the policy to not behave properly");
-                warn!("Carefully review which types of Kubernetes resources the policy needs via the `inspect` command, then run the policy using the `--allow-context-aware` flag.");
-
-                BTreeSet::new()
-            }
-        }
-    }
-}
-
-/// kwctl is built using rustls enabled. Unfortunately rustls does not support validating IP addresses
-/// yet (see https://github.com/kube-rs/kube/issues/1003).
-///
-/// This function provides a workaround to this limitation.
-async fn build_kube_client() -> Result<kube::Client> {
-    // This is the usual way of obtaining a kubeconfig
-    let mut kube_config = kube::Config::infer().await.map_err(anyhow::Error::new)?;
-
-    // Does the cluster_url have an host? This is probably true 99.999% of the times
-    if let Some(host) = kube_config.cluster_url.host() {
-        // is the host an IP or a hostname?
-        let is_an_ip = host.parse::<Ipv4Addr>().is_ok() || host.parse::<Ipv6Addr>().is_ok();
-
-        // if the host is an IP and no `tls_server_name` is set, then
-        // set `tls_server_name` to `kubernetes.default.svc`. This is a FQDN
-        // that is always associated to the certificate used by the API server.
-        // This will make kwctl work against minikube and k3d, to name a few...
-        if is_an_ip && kube_config.tls_server_name.is_none() {
-            warn!(host, "The loaded kubeconfig connects to a server using an IP address instead of a FQDN. This is usually done by minikube, k3d and other local development solutions");
-            warn!("Due to a limitation of rustls, certificate validation cannot be performed against IP addresses, the certificate validation will be made against `kubernetes.default.svc`");
-            kube_config.tls_server_name = Some("kubernetes.default.svc".to_string());
-        }
-    }
-
-    kube::Client::try_from(kube_config).map_err(anyhow::Error::new)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -391,7 +145,7 @@ mod tests {
         );
 
         let mode = determine_execution_mode(
-            metadata,
+            metadata.as_ref(),
             user_execution_mode,
             backend_detector,
             &PathBuf::from("irrelevant.wasm"),
@@ -413,7 +167,7 @@ mod tests {
         );
 
         let mode = determine_execution_mode(
-            metadata,
+            metadata.as_ref(),
             user_execution_mode,
             backend_detector,
             &PathBuf::from("irrelevant.wasm"),
@@ -437,7 +191,7 @@ mod tests {
         );
 
         let mode = determine_execution_mode(
-            metadata,
+            metadata.as_ref(),
             user_execution_mode,
             backend_detector,
             &PathBuf::from("irrelevant.wasm"),
@@ -579,61 +333,5 @@ mod tests {
         );
         assert!(actual.is_ok());
         assert_eq!(actual.unwrap(), PolicyExecutionMode::KubewardenWapc);
-    }
-
-    #[test]
-    fn prevent_access_to_kubernetes_resources_when_policy_is_not_annotated() {
-        let cfg = PullAndRunSettings {
-            allow_context_aware_resources: true,
-            ..Default::default()
-        };
-
-        let resources = compute_context_aware_resources(None, &cfg);
-        assert!(resources.is_empty());
-    }
-
-    #[test]
-    fn prevent_access_to_kubernetes_resources_when_allow_context_aware_resources_is_disabled() {
-        let mut context_aware_resources = BTreeSet::new();
-
-        context_aware_resources.insert(ContextAwareResource {
-            api_version: "v1".to_string(),
-            kind: "Pod".to_string(),
-        });
-
-        let metadata = Metadata {
-            context_aware_resources,
-            ..Default::default()
-        };
-
-        let cfg = PullAndRunSettings {
-            allow_context_aware_resources: false,
-            ..Default::default()
-        };
-
-        let resources = compute_context_aware_resources(Some(&metadata), &cfg);
-        assert!(resources.is_empty());
-    }
-
-    #[test]
-    fn allow_access_to_kubernetes_resources_when_allow_context_aware_resources_is_enabled() {
-        let mut context_aware_resources = BTreeSet::new();
-        context_aware_resources.insert(ContextAwareResource {
-            api_version: "v1".to_string(),
-            kind: "Pod".to_string(),
-        });
-
-        let metadata = Metadata {
-            context_aware_resources: context_aware_resources.clone(),
-            ..Default::default()
-        };
-
-        let cfg = PullAndRunSettings {
-            allow_context_aware_resources: true,
-            ..Default::default()
-        };
-
-        let resources = compute_context_aware_resources(Some(&metadata), &cfg);
-        assert_eq!(resources, context_aware_resources);
     }
 }
