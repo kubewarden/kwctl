@@ -23,7 +23,7 @@ lazy_static = "1.4.0"
 pem = "3"
 policy-evaluator = { git = "https://github.com/kubewarden/policy-evaluator", tag = "v0.20.0" }
 prettytable-rs = "^0.10"
-pulldown-cmark = { version = "0.12.1", default-features = false }
+pulldown-cmark = { version = "0.13.0", default-features = false }
 pulldown-cmark-mdcat = { version = "2.7.1", default-features = false }
 regex = "1"
 rustls-pki-types = { version = "1", features = ["alloc"] }
