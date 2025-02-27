@@ -80,7 +80,7 @@ jobs:
           override: true
 
       - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@eb454bad93a35bbf86f7bf88a114beee8d0e08bd # v2.48.22
+        uses: taiki-e/install-action@ada1a57be87ab19feb601af3b3e0d2d31972f057 # v2.49.7
         with:
           tool: cargo-llvm-cov
 
@@ -91,7 +91,7 @@ jobs:
         run: cargo llvm-cov --lcov --output-path lcov.info
 
       - name: Upload unit-tests coverage to Codecov
-        uses: codecov/codecov-action@13ce06bfc6bbe3ecf90edbbf1bc32fe5978ca1d3 # v5.3.1
+        uses: codecov/codecov-action@0565863a31f2c772f9f0395002a31e3f06189574 # v5.4.0
         with:
           files: lcov.info
           fail_ci_if_error: true
