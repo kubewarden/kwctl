@@ -23,7 +23,7 @@ lazy_static = "1.4.0"
 pem = "3"
 policy-evaluator = { git = "https://github.com/kubewarden/policy-evaluator", tag = "v0.21.0" }
 prettytable-rs = "^0.10"
-pulldown-cmark = { version = "0.12", default-features = false }
+pulldown-cmark = { version = "0.13", default-features = false }
 pulldown-cmark-mdcat = { version = "2.7", default-features = false }
 regex = "1"
 rustls-pki-types = { version = "1", features = ["alloc"] }
@@ -44,7 +44,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["fmt"] }
 url = "2.5.0"
 walrus = "0.23.0"
-wasmparser = "0.226"
+wasmparser = "0.227"
 
 # This is required to have reqwest built using the `rustls-tls-native-roots`
 # feature across all the transitive dependencies of kwctl
