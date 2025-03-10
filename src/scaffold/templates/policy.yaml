@@ -1,0 +1,20 @@
+---
+apiVersion: policies.kubewarden.io/v1
+{{- if eq .Values.clusterScoped true }}
+kind: ClusterAdmissionPolicy
+{{- else }}
+kind: AdmissionPolicy
+{{- end }}
+metadata:
+  name: {{ .Release.name }}
+  {{- if eq .Values.clusterScoped false }}
+  namespace: {{ .Release.namespace }}
+  {{- end }}
+spec:
+  module: '{{ .Values.spec.module.repository }}:{{ .Values.spec.module.tag }}'
+  mode: {{ .Values.spec.mode }}
+  mutating: {{ .Values.spec.mutating }}
+  rules:
+    {{- toYaml .Values.spec.rules | nindent 4 }}
+  settings:
+    {{- toYaml .Values.spec.settings | replace "|\n" "" | nindent 2 }}

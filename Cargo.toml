@@ -20,6 +20,7 @@ k8s-openapi = { version = "0.24.0", default-features = false, features = [
   "v1_30",
 ] }
 lazy_static = "1.4.0"
+oci-spec = "0.7.1"
 pem = "3"
 policy-evaluator = { git = "https://github.com/kubewarden/policy-evaluator", tag = "v0.21.0" }
 prettytable-rs = "^0.10"

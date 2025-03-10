@@ -2953,6 +2953,7 @@ dependencies = [
  "itertools 0.14.0",
  "k8s-openapi",
  "lazy_static",
+ "oci-spec",
  "pem",
  "policy-evaluator",
  "predicates",

@@ -1,0 +1,21 @@
+apiVersion: v2
+name: volumes-psp
+description: Pod Security Policy that controls usage of volumes
+type: application
+home: https://github.com/kubewarden/volumes-psp-policy
+keywords: null
+version: '123'
+appVersion: '123'
+annotations:
+  io.artifacthub.displayName: Volumes PSP
+  io.artifacthub.keywords: psp, pod, volumes
+  io.artifacthub.resources: Pod
+  io.kubewarden.policy.author: Kubewarden developers <cncf-kubewarden-maintainers@lists.cncf.io>
+  io.kubewarden.policy.category: PSP
+  io.kubewarden.policy.description: Pod Security Policy that controls usage of volumes
+  io.kubewarden.policy.license: Apache-2.0
+  io.kubewarden.policy.ociUrl: ghcr.io/kubewarden/policies/volumes-psp
+  io.kubewarden.policy.severity: medium
+  io.kubewarden.policy.source: https://github.com/kubewarden/volumes-psp-policy
+  io.kubewarden.policy.title: volumes-psp
+  io.kubewarden.policy.url: https://github.com/kubewarden/volumes-psp-policy
