@@ -1,6 +1,8 @@
+use std::path::PathBuf;
+
 use clap::{
     builder::PossibleValuesParser, crate_authors, crate_description, crate_name, crate_version,
-    Arg, ArgAction, ArgGroup, Command,
+    value_parser, Arg, ArgAction, ArgGroup, Command,
 };
 use lazy_static::lazy_static;
 
@@ -525,6 +527,35 @@ fn subcommand_scaffold() -> Command {
     ];
     admission_request_args.sort_by(|a, b| a.get_id().cmp(b.get_id()));
 
+    let chart_args = vec![
+        Arg::new("tag")
+            .long("tag")
+            .short('t')
+            .required(true)
+            .value_name("TAG")
+            .help("The tag of the policy to be used in the Helm chart"),
+        Arg::new("metadata-path")
+            .long("metadata-path")
+            .short('m')
+            .value_name("PATH")
+            .value_parser(value_parser!(PathBuf))
+            .default_value("metadata.yml")
+            .help("File containing the metadata of the policy"),
+        Arg::new("questions-path")
+            .long("questions-path")
+            .short('q')
+            .value_name("PATH")
+            .value_parser(value_parser!(PathBuf))
+            .help("File containing the questions-ui content of the policy"),
+        Arg::new("output-path")
+            .long("output-path")
+            .short('o')
+            .value_name("PATH")
+            .value_parser(value_parser!(PathBuf))
+            .default_value("chart")
+            .help("Path where the Helm chart will be stored"),
+    ];
+
     let mut subcommands = vec![
         Command::new("verification-config")
             .about("Output a default Sigstore verification configuration file"),
@@ -540,6 +571,9 @@ fn subcommand_scaffold() -> Command {
         Command::new("admission-request")
             .about("Scaffold an AdmissionRequest object")
             .args(admission_request_args),
+        Command::new("chart")
+            .about("Output a Helm chart for a Kubewarden policy")
+            .args(chart_args)
     ];
     subcommands.sort_by(|a, b| a.get_name().cmp(b.get_name()));
 

@@ -312,79 +312,102 @@ async fn main() -> Result<()> {
             Ok(())
         }
         Some("scaffold") => {
-            if let Some(matches) = matches.subcommand_matches("scaffold") {
-                if let Some(_matches) = matches.subcommand_matches("verification-config") {
-                    println!("{}", scaffold::verification_config()?);
-                }
-            }
-            if let Some(matches) = matches.subcommand_matches("scaffold") {
-                if let Some(artifacthub_matches) = matches.subcommand_matches("artifacthub") {
-                    let metadata_file = artifacthub_matches
-                        .get_one::<String>("metadata-path")
-                        .map(|output| PathBuf::from_str(output).unwrap())
-                        .unwrap();
-                    let version = artifacthub_matches.get_one::<String>("version").unwrap();
-                    let gh_release_tag = artifacthub_matches
-                        .get_one::<String>("gh-release-tag")
-                        .cloned();
-                    let questions_file = artifacthub_matches
-                        .get_one::<String>("questions-path")
-                        .map(|output| PathBuf::from_str(output).unwrap());
-                    let content = scaffold::artifacthub(
-                        metadata_file,
-                        version,
-                        gh_release_tag.as_deref(),
-                        questions_file,
-                    )?;
-                    if let Some(output) = artifacthub_matches.get_one::<String>("output") {
-                        let output_path = PathBuf::from_str(output)?;
-                        fs::write(output_path, content)?;
-                    } else {
-                        println!("{}", content);
+            if let Some(scaffold_matches) = matches.subcommand_matches("scaffold") {
+                match scaffold_matches.subcommand() {
+                    Some(("verification-config", _)) => {
+                        println!("{}", scaffold::verification_config()?);
                     }
+                    Some(("artifacthub", artifacthub_matches)) => {
+                        let metadata_file = artifacthub_matches
+                            .get_one::<String>("metadata-path")
+                            .map(|output| PathBuf::from_str(output).unwrap())
+                            .unwrap();
+                        let version = artifacthub_matches.get_one::<String>("version").unwrap();
+                        let gh_release_tag = artifacthub_matches
+                            .get_one::<String>("gh-release-tag")
+                            .cloned();
+                        let questions_file = artifacthub_matches
+                            .get_one::<String>("questions-path")
+                            .map(|output| PathBuf::from_str(output).unwrap());
+                        let content = scaffold::artifacthub(
+                            metadata_file,
+                            version,
+                            gh_release_tag.as_deref(),
+                            questions_file,
+                        )?;
+                        if let Some(output) = artifacthub_matches.get_one::<String>("output") {
+                            let output_path = PathBuf::from_str(output)?;
+                            fs::write(output_path, content)?;
+                        } else {
+                            println!("{}", content);
+                        }
+                    }
+                    Some(("manifest", manifest_matches)) => {
+                        scaffold_manifest_command(manifest_matches).await?;
+                    }
+                    Some(("vap", vap_matches)) => {
+                        let cel_policy_uri = vap_matches.get_one::<String>("cel-policy").unwrap();
+                        let vap_file: PathBuf =
+                            vap_matches.get_one::<String>("policy").unwrap().into();
+                        let vap_binding_file: PathBuf =
+                            vap_matches.get_one::<String>("binding").unwrap().into();
+
+                        scaffold::vap(
+                            cel_policy_uri.as_str(),
+                            vap_file.as_path(),
+                            vap_binding_file.as_path(),
+                        )?;
+                    }
+                    Some(("admission-request", admission_request_matches)) => {
+                        let operation: scaffold::AdmissionRequestOperation =
+                            admission_request_matches
+                                .get_one::<String>("operation")
+                                .unwrap()
+                                .parse::<scaffold::AdmissionRequestOperation>()
+                                .map_err(|e| anyhow!("Error parsing operation: {}", e))?;
+                        let object_path: Option<PathBuf> =
+                            if admission_request_matches.contains_id("object") {
+                                Some(
+                                    admission_request_matches
+                                        .get_one::<String>("object")
+                                        .unwrap()
+                                        .into(),
+                                )
+                            } else {
+                                None
+                            };
+                        let old_object_path: Option<PathBuf> =
+                            if admission_request_matches.contains_id("old-object") {
+                                Some(
+                                    admission_request_matches
+                                        .get_one::<String>("old-object")
+                                        .unwrap()
+                                        .into(),
+                                )
+                            } else {
+                                None
+                            };
+
+                        scaffold::admission_request(operation, object_path, old_object_path)
+                            .await?;
+                    }
+                    Some(("chart", chart_matches)) => {
+                        let tag = chart_matches
+                            .get_one::<String>("tag")
+                            .expect("tag is required");
+                        let metadata_path = chart_matches
+                            .get_one::<PathBuf>("metadata-path")
+                            .expect("metadata path is required");
+                        let questions_path = chart_matches.get_one::<PathBuf>("questions-path");
+                        let output_path = chart_matches
+                            .get_one::<PathBuf>("output-path")
+                            .expect("output path is required");
+
+                        scaffold::chart(tag, metadata_path, questions_path, output_path)?;
+                    }
+                    _ => {}
                 }
             }
-            if let Some(matches) = matches.subcommand_matches("scaffold") {
-                if let Some(matches) = matches.subcommand_matches("manifest") {
-                    scaffold_manifest_command(matches).await?;
-                };
-            }
-            if let Some(matches) = matches.subcommand_matches("scaffold") {
-                if let Some(matches) = matches.subcommand_matches("vap") {
-                    let cel_policy_uri = matches.get_one::<String>("cel-policy").unwrap();
-                    let vap_file: PathBuf = matches.get_one::<String>("policy").unwrap().into();
-                    let vap_binding_file: PathBuf =
-                        matches.get_one::<String>("binding").unwrap().into();
-
-                    scaffold::vap(
-                        cel_policy_uri.as_str(),
-                        vap_file.as_path(),
-                        vap_binding_file.as_path(),
-                    )?;
-                };
-            }
-            if let Some(matches) = matches.subcommand_matches("scaffold") {
-                if let Some(matches) = matches.subcommand_matches("admission-request") {
-                    let operation: scaffold::AdmissionRequestOperation = matches
-                        .get_one::<String>("operation")
-                        .unwrap()
-                        .parse::<scaffold::AdmissionRequestOperation>()
-                        .map_err(|e| anyhow!("Error parsing operation: {}", e))?;
-                    let object_path: Option<PathBuf> = if matches.contains_id("object") {
-                        Some(matches.get_one::<String>("object").unwrap().into())
-                    } else {
-                        None
-                    };
-                    let old_object_path: Option<PathBuf> = if matches.contains_id("old-object") {
-                        Some(matches.get_one::<String>("old-object").unwrap().into())
-                    } else {
-                        None
-                    };
-
-                    scaffold::admission_request(operation, object_path, old_object_path).await?;
-                };
-            }
-
             Ok(())
         }
         Some("completions") => {

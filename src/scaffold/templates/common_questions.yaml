@@ -1,0 +1,23 @@
+questions:
+  - variable: "clusterScoped"
+    type: boolean
+    default: true
+    required: true
+    label: Scope of policy (cluster-wide or namespaced)
+    description: |
+      Either a cluster-wide policy (ClusterAdmissionPolicy) or a
+      namespaced one (AdmissionPolicy). If Namespaced, the namespace of the releaes
+      is what the AdmissionPolicy will be deployed into and apply for.
+    group: Settings
+  - variable: "spec.mode"
+    type: enum
+    options:
+      - "monitor"
+      - "protect"
+    default: "protect"
+    required: true
+    label: Execution mode of the policy
+    description: Execution mode of the policy. "protect" will reject requests,
+      "monitor" will log them. Transitioning from "monitor" to "protect" is
+      allowed, but not from "protect" to "monitor".
+    group: Settings

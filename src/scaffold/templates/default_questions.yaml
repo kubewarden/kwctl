@@ -1,0 +1,6 @@
+questions:
+  - variable: "spec.settings"
+    type: multiline
+    default: ""
+    group: Settings
+    description: Policy settings
