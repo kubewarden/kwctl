@@ -1,0 +1,23 @@
+questions:
+- default: null
+  description: >-
+    Replacement for the Kubernetes Pod Security Policy that controls the usage
+    of volumes in pods. The policy takes the list of the allowed volume types
+    using the allowedTypes setting. The special value * can be used to allow all
+    kind of volumes.
+  group: Settings
+  required: false
+  hide_input: true
+  type: string
+  variable: description
+- default: []
+  description: ''
+  tooltip: >-
+    A list of the allowed volume types. Note: no other value can be specified
+    together with *. For example, allowedTypes: ['*', 'configMap'] is not a
+    valid configuration setting.
+  group: Settings
+  label: Allowed types
+  required: false
+  type: array[
+  variable: allowedTypes

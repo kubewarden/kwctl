@@ -1,0 +1,21 @@
+global:
+  cattle:
+    systemDefaultRegistry: ghcr.io
+clusterScoped: true
+spec:
+  module:
+    repository: kubewarden/policies/volumes-psp
+    tag: '123'
+  mode: kubewarden-wapc
+  mutating: false
+  contextAwareResources: []
+  rules:
+  - apiGroups:
+    - ''
+    apiVersions:
+    - v1
+    resources:
+    - pods
+    operations:
+    - CREATE
+  settings: {}
