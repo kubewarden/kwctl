@@ -116,6 +116,19 @@ fn build_objmetadata(data: ScaffoldPolicyData) -> ObjectMeta {
     }
 }
 
+fn validate_policy_title(title: &str) -> Result<()> {
+    // Kubernetes RFC 1123 subdomain validation regex
+    let valid_name_regex = regex::Regex::new(r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$").unwrap();
+    
+    if !valid_name_regex.is_match(title) {
+        return Err(anyhow!(
+            "Invalid title '{}'. Must use lowercase alphanumeric chars, '-' or '.', start/end with alphanumeric.",
+            title
+        ));
+    }
+    Ok(())
+}
+
 pub(crate) fn manifest(
     uri_or_sha_prefix: &str,
     resource_type: ManifestType,
@@ -135,9 +148,16 @@ pub(crate) fn manifest(
 
     let settings_yml: serde_yaml::Mapping = serde_yaml::from_str(settings.unwrap_or("{}"))?;
 
+    let policy_title = get_policy_title_from_cli_or_metadata(policy_title, &metadata);
+    
+    // Validate policy title if present
+    if let Some(title) = &policy_title {
+        validate_policy_title(title)?;
+    }
+    
     let scaffold_data = ScaffoldPolicyData {
         uri,
-        policy_title: get_policy_title_from_cli_or_metadata(policy_title, &metadata),
+        policy_title,
         metadata,
         settings: settings_yml,
     };
@@ -458,5 +478,14 @@ mod tests {
         let spec = resource.get("spec").expect("cannot get `Spec`");
         let context_aware_resources = spec.get("contextAwareResources");
         assert!(context_aware_resources.is_none());
+    }
+
+    #[test]
+    fn test_manifest_with_invalid_policy_title() {
+        // Test the validation function directly
+        let result = validate_policy_title("My_policy");
+        
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Invalid title"));
     }
 }
