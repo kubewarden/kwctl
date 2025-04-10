@@ -1,11 +1,9 @@
 use anyhow::{anyhow, Result};
 use policy_evaluator::policy_evaluator::PolicyExecutionMode;
-use policy_evaluator::policy_fetcher::oci_client::Reference;
 use policy_evaluator::policy_fetcher::store::{errors::StoreError, Store};
 use regex::Regex;
 use serde_json::json;
 use std::path::PathBuf;
-use std::str::FromStr;
 use url::Url;
 
 #[derive(Debug, thiserror::Error)]
@@ -45,12 +43,45 @@ pub(crate) fn map_path_to_uri(uri_or_sha_prefix: &str) -> std::result::Result<St
     }
 }
 
+pub(crate) fn verify_policy_version(uri: &str) -> std::result::Result<(), LookupError> {
+    let store = Store::default();
+    if store.get_policy_by_uri(uri)?.is_none() {
+        let base_uri = uri.split(':').next().unwrap_or(uri);
+        let policies = store.list()?;
+        let versions: Vec<_> = policies
+            .iter()
+            .filter(|p| p.uri.starts_with(base_uri) && p.uri.contains(':'))
+            .map(|p| p.uri.split(':').last().unwrap_or(""))
+            .collect();
+
+        if !versions.is_empty() {
+            return Err(LookupError::PolicyMissing(format!(
+                "Policy {} not found. \nAvailable versions: {}",
+                uri,
+                versions.join(", ")
+            )));
+        }
+    }
+    Ok(())
+}
+
 pub(crate) fn get_uri(uri_or_sha_prefix: &String) -> std::result::Result<String, LookupError> {
-    map_path_to_uri(uri_or_sha_prefix).or_else(|_| {
-        Reference::from_str(uri_or_sha_prefix)
-            .map(|oci_reference| format!("registry://{}", oci_reference.whole()))
-            .map_err(|_| LookupError::PolicyMissing(uri_or_sha_prefix.to_string()))
-    })
+    if uri_or_sha_prefix.starts_with("registry://") || !uri_or_sha_prefix.contains("://") {
+        let uri = if uri_or_sha_prefix.starts_with("registry://") {
+            uri_or_sha_prefix.clone()
+        } else {
+            format!("registry://{}", uri_or_sha_prefix)
+        };
+
+        if let Some(last_part) = uri.split('/').last() {
+            if !last_part.contains(':') {
+                return Ok(format!("{}:latest", uri));
+            }
+        }
+        return Ok(uri);
+    }
+
+    map_path_to_uri(uri_or_sha_prefix)
 }
 
 pub(crate) fn get_wasm_path(uri_or_sha_prefix: &str) -> std::result::Result<PathBuf, LookupError> {

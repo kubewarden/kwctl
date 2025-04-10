@@ -3,7 +3,9 @@ use policy_evaluator::policy_fetcher::store::{PolicyPath, Store};
 use std::path::PathBuf;
 
 pub(crate) fn rm(uri_or_sha_prefix: &str) -> Result<()> {
-    let uri = crate::utils::map_path_to_uri(uri_or_sha_prefix)?;
+    let uri = crate::utils::get_uri(&uri_or_sha_prefix.to_string())?;
+
+    crate::utils::verify_policy_version(&uri)?;
 
     let store = Store::default();
     let policy_path = store.policy_full_path(&uri, PolicyPath::PrefixAndFilename)?;
@@ -38,6 +40,8 @@ pub(crate) fn rm(uri_or_sha_prefix: &str) -> Result<()> {
                 }
             });
     }
+
+    println!("Successfully removed policy: {}", uri);
 
     Ok(())
 }
