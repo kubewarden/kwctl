@@ -3034,7 +3034,7 @@ dependencies = [
  "tracing-subscriber",
  "url",
  "walrus",
- "wasmparser 0.233.0",
+ "wasmparser 0.234.0",
 ]
 
 [[package]]
@@ -6589,9 +6589,9 @@ dependencies = [
 
 [[package]]
 name = "wasmparser"
-version = "0.233.0"
+version = "0.234.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b51cb03afce7964bbfce46602d6cb358726f36430b6ba084ac6020d8ce5bc102"
+checksum = "be22e5a8f600afce671dd53c8d2dd26b4b7aa810fd18ae27dfc49737f3e02fc5"
 dependencies = [
  "bitflags 2.9.0",
  "hashbrown 0.15.2",
