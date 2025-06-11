@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::{collections::BTreeSet, sync::Arc};
 
 use anyhow::{anyhow, Result};
 use policy_evaluator::{
@@ -51,7 +51,10 @@ pub(crate) enum Evaluator {
         settings: PolicySettings,
         request: ValidateRequest,
     },
-    GroupPolicy(PolicyGroupEvaluator),
+    GroupPolicy {
+        policy_group_evaluator: Arc<PolicyGroupEvaluator>,
+        request: ValidateRequest,
+    },
 }
 
 impl Evaluator {
@@ -126,8 +129,53 @@ impl Evaluator {
                     shutdown_channel_tx,
                 ))
             }
-            PolicyDefinition::Group { .. } => {
-                todo!();
+            PolicyDefinition::Group {
+                id,
+                policy_members,
+                expression,
+                message,
+            } => {
+                let is_context_aware = policy_members
+                    .iter()
+                    .any(|(_, pm)| !pm.settings.ctx_aware_resources_allow_list.is_empty());
+
+                let callback_handler =
+                    build_callback_handler(is_context_aware, cfg, shutdown_channel_rx).await?;
+
+                // group policies cannot be raw right now
+                let request = build_validate_request(cfg.request.clone())?;
+
+                let mut policy_group_evaluator = PolicyGroupEvaluator::new(
+                    id,
+                    message,
+                    expression,
+                    Some(callback_handler.sender_channel()),
+                );
+
+                for (member_id, member) in policy_members {
+                    let mut policy_evaluator_builder = PolicyEvaluatorBuilder::new()
+                        .policy_file(local_data.local_path(&member.uri)?)?;
+                    if cfg.enable_wasmtime_cache {
+                        policy_evaluator_builder = policy_evaluator_builder.enable_wasmtime_cache();
+                    }
+
+                    let policy_evaluator_pre = Arc::new(policy_evaluator_builder.build_pre()?);
+
+                    policy_group_evaluator.add_policy_member(
+                        member_id,
+                        policy_evaluator_pre,
+                        member.settings.clone(),
+                    );
+                }
+
+                Ok((
+                    Self::GroupPolicy {
+                        policy_group_evaluator: Arc::new(policy_group_evaluator),
+                        request,
+                    },
+                    callback_handler,
+                    shutdown_channel_tx,
+                ))
             }
         }
     }
@@ -142,9 +190,10 @@ impl Evaluator {
                 settings,
                 request,
             } => policy_evaluator.validate(request.clone(), settings),
-            Self::GroupPolicy(_policy_group_evaluator) => {
-                todo!();
-            }
+            Self::GroupPolicy {
+                policy_group_evaluator,
+                request,
+            } => policy_group_evaluator.clone().validate(request),
         }
     }
 
@@ -159,9 +208,10 @@ impl Evaluator {
                 // validate the settings given by the user
                 policy_evaluator.validate_settings(settings)
             }
-            Self::GroupPolicy(_policy_group_evaluator) => {
-                todo!();
-            }
+            Self::GroupPolicy {
+                policy_group_evaluator,
+                ..
+            } => policy_group_evaluator.validate_settings(),
         }
     }
 }

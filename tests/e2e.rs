@@ -1,12 +1,16 @@
 use std::{
-    collections::{BTreeMap, HashSet},
+    collections::{BTreeMap, HashMap, HashSet},
     path::Path,
 };
 
 use anyhow::Result;
 use common::{setup_command, test_data};
 use policy_evaluator::{
-    kubewarden_policy_sdk::crd::policies::admission_policy, policy_fetcher, policy_metadata,
+    kubewarden_policy_sdk::crd::policies::{
+        admission_policy, admission_policy_group, cluster_admission_policy,
+        cluster_admission_policy_group, common::ContextAwareResource as ContextAwareResourceSdk,
+    },
+    policy_fetcher, policy_metadata,
 };
 use predicates::{prelude::*, str::contains, str::is_empty};
 use rstest::rstest;
@@ -137,9 +141,9 @@ fn test_run_individual_policy_from_crd(#[case] request: &str, #[case] allowed: b
         }),
         ..Default::default()
     };
-    let crd_path = tempdir.path().join("pod-privileged-policy.yaml");
+    let crd_file = tempfile::NamedTempFile::new().expect("cannot create temp file for CRD");
     std::fs::write(
-        &crd_path,
+        crd_file.path(),
         serde_yaml::to_string(&crd).expect("cannot serialize CRD"),
     )
     .expect("cannot write CRD to file");
@@ -147,7 +151,7 @@ fn test_run_individual_policy_from_crd(#[case] request: &str, #[case] allowed: b
     let mut cmd = setup_command(tempdir.path());
     cmd.arg("run")
         .arg("--crd")
-        .arg(crd_path)
+        .arg(crd_file.path())
         .arg("--request-path")
         .arg(test_data(request));
 
@@ -179,9 +183,9 @@ fn test_run_multiple_policies_from_crd() {
         crd.serialize(&mut serializer)
             .expect("cannot serialize CRD");
     }
-    let crd_path = tempdir.path().join("multiple-policies.yaml");
+    let crd_file = tempfile::NamedTempFile::new().expect("cannot create temp file for CRD");
     std::fs::write(
-        &crd_path,
+        &crd_file.path(),
         serializer.into_inner().expect("cannot serialize CRD doc"),
     )
     .expect("cannot write CRD to file");
@@ -189,7 +193,7 @@ fn test_run_multiple_policies_from_crd() {
     let mut cmd = setup_command(tempdir.path());
     cmd.arg("run")
         .arg("--crd")
-        .arg(crd_path)
+        .arg(crd_file.path())
         .arg("--request-path")
         .arg(test_data("unprivileged-pod.json"));
 
@@ -216,9 +220,9 @@ fn test_run_cannot_mix_crd_and_uri() {
         }),
         ..Default::default()
     };
-    let crd_path = tempdir.path().join("pod-privileged-policy.yaml");
+    let crd_file = tempfile::NamedTempFile::new().expect("cannot create temp file for CRD");
     std::fs::write(
-        &crd_path,
+        crd_file.path(),
         serde_yaml::to_string(&crd).expect("cannot serialize CRD"),
     )
     .expect("cannot write CRD to file");
@@ -226,12 +230,55 @@ fn test_run_cannot_mix_crd_and_uri() {
     let mut cmd = setup_command(tempdir.path());
     cmd.arg("run")
         .arg("--crd")
-        .arg(crd_path)
+        .arg(crd_file.path())
         .arg("--request-path")
         .arg(test_data("unprivileged-pod.json"))
         .arg("registry://ghcr.io/kubewarden/tests/pod-privileged:v0.2.5");
 
     cmd.assert().failure();
+}
+
+#[test]
+fn test_run_group_policy() {
+    let tempdir = tempdir().expect("cannot create tempdir");
+    pull_policies(tempdir.path(), POLICIES);
+
+    let crd = admission_policy_group::AdmissionPolicyGroup {
+        metadata: k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+            name: Some("group-policy".to_string()),
+            ..Default::default()
+        },
+        spec: Some(admission_policy_group::AdmissionPolicyGroupSpec {
+            expression: "pod_privileged() && true".to_string(),
+            message: "you shall not pass!".to_string(),
+            policies: HashMap::from([(
+                "pod_privileged".to_string(),
+                admission_policy_group::PolicyGroupMember {
+                    module: "registry://ghcr.io/kubewarden/tests/pod-privileged:v0.2.5".to_string(),
+                    ..Default::default()
+                },
+            )]),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    let crd_file = tempfile::NamedTempFile::new().expect("cannot create temp file for CRD");
+    std::fs::write(
+        crd_file.path(),
+        serde_yaml::to_string(&crd).expect("cannot serialize CRD"),
+    )
+    .expect("cannot write CRD to file");
+
+    let mut cmd = setup_command(tempdir.path());
+    cmd.arg("run")
+        .arg("--crd")
+        .arg(crd_file.path())
+        .arg("--request-path")
+        .arg(test_data("unprivileged-pod.json"));
+
+    cmd.assert().success();
+    cmd.assert()
+        .stdout(contains(format!("\"allowed\":{}", true)));
 }
 
 #[test]
@@ -294,6 +341,153 @@ fn test_run_context(
     cmd.assert().success();
     cmd.assert()
         .stdout(contains(format!("\"allowed\":{}", allowed)));
+}
+
+#[rstest]
+#[case::allowed(
+    "registry://ghcr.io/kubewarden/tests/context-aware-policy-demo:v0.1.0",
+    vec![ContextAwareResourceSdk{
+        api_version: "v1".to_string(),
+        kind: "Namespace".to_string(),
+    }],
+    "context-aware-policy-request-pod-creation-all-labels.json",
+    "context-aware-demo-namespace-found.yml",
+    true
+)]
+#[case::rejected(
+    "registry://ghcr.io/kubewarden/tests/context-aware-policy-demo:v0.1.0",
+    vec![ContextAwareResourceSdk{
+        api_version: "v1".to_string(),
+        kind: "Namespace".to_string(),
+    }],
+    "context-aware-policy-request-pod-creation-all-labels.json",
+    "context-aware-demo-namespace-not-found.yml",
+    false
+)]
+#[case::gatekeeper_allowed(
+    "registry://ghcr.io/kubewarden/tests/unique-ingress-policy:v0.1.3",
+    vec![ContextAwareResourceSdk{
+        api_version: "networking.k8s.io/v1".to_string(),
+        kind: "Ingress".to_string(),
+    }],
+    "ingress.json",
+    "context-aware-unique-ingress-no-duplicate.yml",
+    true
+)]
+#[case::gatekeeper_rejected(
+    "registry://ghcr.io/kubewarden/tests/unique-ingress-policy:v0.1.3",
+    vec![ContextAwareResourceSdk{
+        api_version: "networking.k8s.io/v1".to_string(),
+        kind: "Ingress".to_string(),
+    }],
+    "ingress.json",
+    "context-aware-unique-ingress-duplicate.yml",
+    false
+)]
+fn test_run_context_from_crd(
+    #[case] policy_uri: &str,
+    #[case] context_aware_resources: Vec<ContextAwareResourceSdk>,
+    #[case] request: &str,
+    #[case] session: &str,
+    #[case] allowed: bool,
+) {
+    let tempdir = tempdir().expect("cannot create tempdir");
+    pull_policies(tempdir.path(), POLICIES);
+
+    let session_path = test_data(format!("host-capabilities-sessions/{}", session).as_str());
+
+    let crd = cluster_admission_policy::ClusterAdmissionPolicy {
+        metadata: k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+            name: Some("policy".to_string()),
+            ..Default::default()
+        },
+        spec: Some(cluster_admission_policy::ClusterAdmissionPolicySpec {
+            module: policy_uri.to_string(),
+            context_aware_resources,
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    let crd_file = tempfile::NamedTempFile::new().expect("cannot create temp file for CRD");
+    std::fs::write(
+        crd_file.path(),
+        serde_yaml::to_string(&crd).expect("cannot serialize CRD"),
+    )
+    .expect("cannot write CRD to file");
+
+    let mut cmd = setup_command(tempdir.path());
+
+    cmd.arg("run")
+        .arg("--allow-context-aware")
+        .arg("--request-path")
+        .arg(test_data(request))
+        .arg("--replay-host-capabilities-interactions")
+        .arg(session_path)
+        .arg("--crd")
+        .arg(crd_file.path());
+
+    cmd.assert().success();
+    cmd.assert()
+        .stdout(contains(format!("\"allowed\":{}", allowed)));
+}
+
+#[test]
+fn test_run_ctx_aware_group_policy() {
+    let tempdir = tempdir().expect("cannot create tempdir");
+    pull_policies(tempdir.path(), POLICIES);
+
+    let crd = cluster_admission_policy_group::ClusterAdmissionPolicyGroup {
+        metadata: k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+            name: Some("group-policy".to_string()),
+            ..Default::default()
+        },
+        spec: Some(
+            cluster_admission_policy_group::ClusterAdmissionPolicyGroupSpec {
+                expression: "demo_policy() && true".to_string(),
+                message: "you shall not pass!".to_string(),
+                policies: HashMap::from([(
+                    "demo_policy".to_string(),
+                    cluster_admission_policy_group::PolicyGroupMemberWithContext {
+                        module:
+                            "registry://ghcr.io/kubewarden/tests/context-aware-policy-demo:v0.1.0"
+                                .to_string(),
+                        context_aware_resources: vec![ContextAwareResourceSdk {
+                            api_version: "v1".to_string(),
+                            kind: "Namespace".to_string(),
+                        }],
+                        ..Default::default()
+                    },
+                )]),
+                ..Default::default()
+            },
+        ),
+        ..Default::default()
+    };
+    let crd_file = tempfile::NamedTempFile::new().expect("cannot create temp file for CRD");
+    std::fs::write(
+        crd_file.path(),
+        serde_yaml::to_string(&crd).expect("cannot serialize CRD"),
+    )
+    .expect("cannot write CRD to file");
+
+    let request = "context-aware-policy-request-pod-creation-all-labels.json";
+
+    let session = "context-aware-demo-namespace-found.yml";
+    let session_path = test_data(format!("host-capabilities-sessions/{}", session).as_str());
+
+    let mut cmd = setup_command(tempdir.path());
+    cmd.arg("run")
+        .arg("--allow-context-aware")
+        .arg("--request-path")
+        .arg(test_data(request))
+        .arg("--replay-host-capabilities-interactions")
+        .arg(session_path)
+        .arg("--crd")
+        .arg(crd_file.path());
+
+    cmd.assert().success();
+    cmd.assert()
+        .stdout(contains(format!("\"allowed\":{}", true)));
 }
 
 #[test]
