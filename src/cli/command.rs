@@ -338,7 +338,16 @@ the positional parameter indicating the policy to be run cannot be provided.
 Note: if provided, the `--execution-mode` flag is applied to all the policies
 mentioned in the CRD.
 
-Note: `raw` policies are not supported when using the CRD flag.
+Notes
+
+- `raw` policies are not supported
+- Only these attributes of the CRD are considered: policy module to be evaluated,
+  policy settings and context aware resources. All the other fields are ignored.
+  For example, `rules`, `matchConditions`, `objectSelector`, `namespaceSelector`
+  and other fields are not taken into account.
+- the YAML file could contain multiple declarations of Kubewarden Custom Resources.
+  In this case kwctl will evaluate each policy found inside of the YAML file.
+  However, the same request is going to be used during each evaluation.
 "#)
             .conflicts_with_all(["settings-path", "settings-json", "raw"]),
     ]
