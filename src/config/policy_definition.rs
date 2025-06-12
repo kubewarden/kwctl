@@ -1,7 +1,6 @@
 use std::{
     collections::{BTreeSet, HashMap, HashSet},
     fmt,
-    path::Path,
 };
 
 use anyhow::{anyhow, Result};
@@ -244,22 +243,17 @@ impl PolicyDefinition {
 
     /// reads all the CRDs defined inside of the given file and returns a
     /// list of PolicyDefinition
-    pub fn from_crd_file(crd_path: &Path) -> Result<Vec<PolicyDefinition>> {
+    pub fn from_yaml_file(yaml_path: &str) -> Result<Vec<PolicyDefinition>> {
         let deserializer = serde_yaml::Deserializer::from_reader(
-            std::fs::File::open(crd_path)
-                .map_err(|e| anyhow!("Cannot open CRD file {:?}: {}", crd_path.to_str(), e))?,
+            std::fs::File::open(yaml_path)
+                .map_err(|e| anyhow!("Cannot open YAML file {:?}: {}", yaml_path, e))?,
         );
 
         let mut policies = Vec::new();
 
         for document in deserializer {
-            let value_yaml = serde_yaml::Value::deserialize(document).map_err(|e| {
-                anyhow!(
-                    "Cannot parse CRD file {:?} into YAML value: {}",
-                    crd_path.to_str(),
-                    e
-                )
-            })?;
+            let value_yaml = serde_yaml::Value::deserialize(document)
+                .map_err(|e| anyhow!("Cannot parse YAML file {:?}: {}", yaml_path, e))?;
 
             let policy = PolicyDefinition::new(value_yaml)?;
             policies.push(policy);
@@ -273,7 +267,7 @@ impl PolicyDefinition {
     /// This will always create an individual PolicyDefinition
     pub fn from_cli(matches: &ArgMatches) -> Result<PolicyDefinition> {
         let uri = matches
-            .get_one::<String>("uri_or_sha_prefix")
+            .get_one::<String>("uri_or_sha_prefix_or_yaml_file")
             .map(
                 |uri_or_sha_prefix| -> std::result::Result<String, crate::utils::LookupError> {
                     crate::utils::map_path_to_uri(uri_or_sha_prefix)

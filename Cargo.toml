@@ -12,6 +12,7 @@ anyhow = "1.0"
 clap = { version = "4.5", features = ["cargo", "env"] }
 clap-markdown = "0.1.4"
 clap_complete = "4.5"
+color-print = "0.3"
 directories = "6.0.0"
 flate2 = "1.1"
 humansize = "2.1"

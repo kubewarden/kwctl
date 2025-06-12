@@ -2,7 +2,7 @@ use std::{
     collections::{HashMap, HashSet},
     fs,
     io::{self, Read},
-    path::{Path, PathBuf},
+    path::PathBuf,
     str::FromStr,
     sync::Arc,
 };
@@ -39,19 +39,27 @@ pub(crate) struct PullAndRunSettings {
 }
 
 pub(crate) fn parse_policy_definitions(matches: &ArgMatches) -> Result<Vec<PolicyDefinition>> {
-    if matches.contains_id("uri_or_sha_prefix") {
-        return Ok(vec![PolicyDefinition::from_cli(matches)?]);
+    let uri = matches
+        .get_one::<String>("uri_or_sha_prefix_or_yaml_file")
+        .expect("uri_or_sha_prefix is guaranteed to be Some here");
+
+    if uri.ends_with(".yaml") || uri.ends_with(".yml") {
+        let raw = matches.get_one::<bool>("raw").unwrap_or(&false);
+        if *raw {
+            return Err(anyhow!(
+                "The --raw option cannot be used with a YAML file: {}",
+                uri
+            ));
+        }
+        if matches.contains_id("settings-json") || matches.contains_id("settings-path") {
+            info!("The --settings-json and --settings-path options are ignored when using a YAML file");
+        }
+
+        // If the URI is a YAML file, parse it as a policy definition
+        return PolicyDefinition::from_yaml_file(uri);
     }
 
-    if let Some(crd) = matches.get_one::<String>("crd") {
-        let crd_path = Path::new(crd);
-        return PolicyDefinition::from_crd_file(crd_path);
-    }
-
-    // This should not happen because clap should prevent that
-    Err(anyhow!(
-        "No policy to be run. Please specify a policy URI, SHA prefix, or CRD file."
-    ))
+    Ok(vec![PolicyDefinition::from_cli(matches)?])
 }
 
 pub(crate) async fn parse_pull_and_run_settings(

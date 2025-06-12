@@ -19,6 +19,32 @@ Use the `info` command to display system information.
     };
 }
 
+static RUN_AND_BENCH_COMMON_LONG_ABOUT: &str = color_print::cstr!(
+    r#"The policy can be specified in the following ways:
+- <i>URI</i>: e.g., `registry://ghcr.io/kubewarden/policies/psp-policy:latest` or `https://example.com/kubewarden/policies/main/psp-policy/psp-policy.wasm`
+- <i>SHA prefix</i>: e.g., `c3b80a10f9c3` (requires the policy to be already pulled)
+- <i>Local WASM file</i>: e.g., `file://home/tux/new-policy/psp-policy.wasm`
+- <i>Local YAML file</i>: e.g., `file://home/tux/cluster-admission-policy.yaml` (contains declarations of Kubewarden Custom Resources like `ClusterAdmissionPolicy`, `AdmissionPolicy`, etc.)
+
+<strong><u>Default Behavior</u></strong>:
+If the schema is omitted, `file://` is assumed, rooted in the current directory.
+
+<strong><u>Notes on Kubewarden Custom Resources</u></strong>:
+- Flags `--request-path`, `--settings-path`, and `--settings-json` are ignored; settings are read from the Custom Resource definition.
+- The `--execution-mode` flag applies to all policies in the YAML file.
+- The `--raw` flag cannot be used, as Kubewarden's Custom Resources do not support `raw` policies.
+
+Only the following attributes of the Custom Resource Definition (CRD) are evaluated:
+- Policy module
+- Policy settings
+- Context-aware resources the policy can access
+
+Other fields, such as `rules`, `matchConditions`, `objectSelector`, and `namespaceSelector`, are ignored.
+
+A YAML file may contain multiple Custom Resource declarations. In this case, `kwctl` evaluates each policy in the file using the same request during each evaluation.
+"#
+);
+
 // Minimum set of flags required to pull a policy from a registry
 fn pull_shared_flags() -> Vec<Arg> {
     vec![
@@ -325,46 +351,27 @@ Useful to be combined later with '--replay-host-capabilities-interactions' flag"
 the host replays back the answers found inside of the provided file.
 This is useful to test policies in a reproducible way, given no external
 interactions with OCI registries, DNS, Kubernetes are performed."#),
-        Arg::new("crd")
-            .long("crd")
-            .value_name("FILE")
-            .help("Load a Kubewarden CRD and evaluate the request against it.")
-            .long_help(r#"Load a Kubewarden CRD and evaluate the request against it.
-When used, the settings of the policy are read from the CRD definition, hence
-the `--settings-path` and `--settings-json` flags cannot be used.
-Moreover, since the policy module to be used is specified inside of the CRD,
-the positional parameter indicating the policy to be run cannot be provided.
-
-Note: if provided, the `--execution-mode` flag is applied to all the policies
-mentioned in the CRD.
-
-Notes
-
-- `raw` policies are not supported
-- Only these attributes of the CRD are considered: policy module to be evaluated,
-  policy settings and context aware resources. All the other fields are ignored.
-  For example, `rules`, `matchConditions`, `objectSelector`, `namespaceSelector`
-  and other fields are not taken into account.
-- the YAML file could contain multiple declarations of Kubewarden Custom Resources.
-  In this case kwctl will evaluate each policy found inside of the YAML file.
-  However, the same request is going to be used during each evaluation.
-"#)
-            .conflicts_with_all(["settings-path", "settings-json", "raw"]),
-    ]
+     ]
 }
 
 fn subcommand_run() -> Command {
     let mut args = run_args();
     args.sort_by(|a, b| a.get_id().cmp(b.get_id()));
     args.push(
-        Arg::new("uri_or_sha_prefix")
+        Arg::new("uri_or_sha_prefix_or_yaml_file")
+            .required(true)
             .index(1)
-            .help("Policy URI or SHA prefix. Supported schemes: registry://, https://, file://. If schema is omitted, file:// is assumed, rooted on the current directory.")
-            .conflicts_with("crd")
+            .help("Policy URI, SHA prefix or YAML file contining Kubewarden policy resources. Supported schemes: registry://, https://, file://. If schema is omitted, file:// is assumed, rooted on the current directory.")
     );
 
     Command::new("run")
         .about("Runs a Kubewarden policy from a given URI")
+        .long_about(format!(
+            r#"Run one or more Kubewarden policies locally.
+
+{}"#,
+            RUN_AND_BENCH_COMMON_LONG_ABOUT
+        ))
         .args(args)
         .group(
             // these flags cannot be used at the same time
@@ -619,14 +626,20 @@ fn subcommand_bench() -> Command {
     args.append(&mut run_args);
     args.sort_by(|a, b| a.get_id().cmp(b.get_id()));
     args.push(
-        Arg::new("uri_or_sha_prefix")
+        Arg::new("uri_or_sha_prefix_or_yaml_file")
             .required(true)
             .index(1)
-            .help("Policy URI or SHA prefix. Supported schemes: registry://, https://, file://. If schema is omitted, file:// is assumed, rooted on the current directory.")
+            .help("Policy URI, SHA prefix or YAML file contining Kubewarden policy resources. Supported schemes: registry://, https://, file://. If schema is omitted, file:// is assumed, rooted on the current directory.")
     );
 
     Command::new("bench")
         .about("Benchmarks a Kubewarden policy")
+        .long_about(format!(
+            r#"Benchmarks a Kubewarden policy.
+
+{}"#,
+            RUN_AND_BENCH_COMMON_LONG_ABOUT
+        ))
         .args(args)
         .group(
             // these flags cannot be used at the same time

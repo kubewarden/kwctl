@@ -126,7 +126,7 @@ fn test_run_individual_policy_from_cli(#[case] request: &str, #[case] allowed: b
 #[case::rejected("privileged-pod.json", false)]
 #[case::admission_review_allowed("unprivileged-pod-admission-review.json", true)]
 #[case::admission_review_rejected("privileged-pod-admission-review.json", false)]
-fn test_run_individual_policy_from_crd(#[case] request: &str, #[case] allowed: bool) {
+fn test_run_individual_policy_from_yaml(#[case] request: &str, #[case] allowed: bool) {
     let tempdir = tempdir().expect("cannot create tempdir");
     pull_policies(tempdir.path(), POLICIES);
 
@@ -141,19 +141,19 @@ fn test_run_individual_policy_from_crd(#[case] request: &str, #[case] allowed: b
         }),
         ..Default::default()
     };
-    let crd_file = tempfile::NamedTempFile::new().expect("cannot create temp file for CRD");
+    let yaml_file =
+        tempfile::NamedTempFile::with_suffix(".yaml").expect("cannot create temp file for CRD");
     std::fs::write(
-        crd_file.path(),
+        yaml_file.path(),
         serde_yaml::to_string(&crd).expect("cannot serialize CRD"),
     )
     .expect("cannot write CRD to file");
 
     let mut cmd = setup_command(tempdir.path());
     cmd.arg("run")
-        .arg("--crd")
-        .arg(crd_file.path())
         .arg("--request-path")
-        .arg(test_data(request));
+        .arg(test_data(request))
+        .arg(yaml_file.path());
 
     cmd.assert().success();
     cmd.assert()
@@ -183,29 +183,27 @@ fn test_run_multiple_policies_from_crd() {
         crd.serialize(&mut serializer)
             .expect("cannot serialize CRD");
     }
-    let crd_file = tempfile::NamedTempFile::new().expect("cannot create temp file for CRD");
+    let yaml_file =
+        tempfile::NamedTempFile::with_suffix(".yaml").expect("cannot create temp file for CRD");
     std::fs::write(
-        &crd_file.path(),
+        yaml_file.path(),
         serializer.into_inner().expect("cannot serialize CRD doc"),
     )
     .expect("cannot write CRD to file");
 
     let mut cmd = setup_command(tempdir.path());
     cmd.arg("run")
-        .arg("--crd")
-        .arg(crd_file.path())
         .arg("--request-path")
-        .arg(test_data("unprivileged-pod.json"));
+        .arg(test_data("unprivileged-pod.json"))
+        .arg(yaml_file.path());
 
     cmd.assert().success();
     cmd.assert()
         .stdout(contains(format!("\"allowed\":{}", true)));
-    cmd.assert()
-        .stderr(contains("Multiple policies defined inside of the CRD file. All of them will run sequentially using the same settings and request."));
 }
 
 #[test]
-fn test_run_cannot_mix_crd_and_uri() {
+fn test_run_a_yaml_file_and_use_raw_flag() {
     let tempdir = tempdir().expect("cannot create tempdir");
     pull_policies(tempdir.path(), POLICIES);
 
@@ -220,20 +218,20 @@ fn test_run_cannot_mix_crd_and_uri() {
         }),
         ..Default::default()
     };
-    let crd_file = tempfile::NamedTempFile::new().expect("cannot create temp file for CRD");
+    let yaml_file =
+        tempfile::NamedTempFile::with_suffix(".yaml").expect("cannot create temp file for CRD");
     std::fs::write(
-        crd_file.path(),
+        yaml_file.path(),
         serde_yaml::to_string(&crd).expect("cannot serialize CRD"),
     )
     .expect("cannot write CRD to file");
 
     let mut cmd = setup_command(tempdir.path());
     cmd.arg("run")
-        .arg("--crd")
-        .arg(crd_file.path())
+        .arg("--raw")
         .arg("--request-path")
         .arg(test_data("unprivileged-pod.json"))
-        .arg("registry://ghcr.io/kubewarden/tests/pod-privileged:v0.2.5");
+        .arg(yaml_file.path());
 
     cmd.assert().failure();
 }
@@ -262,35 +260,23 @@ fn test_run_group_policy() {
         }),
         ..Default::default()
     };
-    let crd_file = tempfile::NamedTempFile::new().expect("cannot create temp file for CRD");
+    let yaml_file =
+        tempfile::NamedTempFile::with_suffix(".yaml").expect("cannot create temp file for CRD");
     std::fs::write(
-        crd_file.path(),
+        yaml_file.path(),
         serde_yaml::to_string(&crd).expect("cannot serialize CRD"),
     )
     .expect("cannot write CRD to file");
 
     let mut cmd = setup_command(tempdir.path());
     cmd.arg("run")
-        .arg("--crd")
-        .arg(crd_file.path())
         .arg("--request-path")
-        .arg(test_data("unprivileged-pod.json"));
+        .arg(test_data("unprivileged-pod.json"))
+        .arg(yaml_file.path());
 
     cmd.assert().success();
     cmd.assert()
         .stdout(contains(format!("\"allowed\":{}", true)));
-}
-
-#[test]
-fn test_run_must_provide_either_crd_or_uri() {
-    let tempdir = tempdir().expect("cannot create tempdir");
-
-    let mut cmd = setup_command(tempdir.path());
-    cmd.arg("run")
-        .arg("--request-path")
-        .arg(test_data("unprivileged-pod.json"));
-
-    cmd.assert().failure();
 }
 
 #[rstest]
@@ -384,7 +370,7 @@ fn test_run_context(
     "context-aware-unique-ingress-duplicate.yml",
     false
 )]
-fn test_run_context_from_crd(
+fn test_run_context_from_yaml(
     #[case] policy_uri: &str,
     #[case] context_aware_resources: Vec<ContextAwareResourceSdk>,
     #[case] request: &str,
@@ -408,9 +394,10 @@ fn test_run_context_from_crd(
         }),
         ..Default::default()
     };
-    let crd_file = tempfile::NamedTempFile::new().expect("cannot create temp file for CRD");
+    let yaml_file =
+        tempfile::NamedTempFile::with_suffix(".yaml").expect("cannot create temp file for CRD");
     std::fs::write(
-        crd_file.path(),
+        yaml_file.path(),
         serde_yaml::to_string(&crd).expect("cannot serialize CRD"),
     )
     .expect("cannot write CRD to file");
@@ -423,8 +410,7 @@ fn test_run_context_from_crd(
         .arg(test_data(request))
         .arg("--replay-host-capabilities-interactions")
         .arg(session_path)
-        .arg("--crd")
-        .arg(crd_file.path());
+        .arg(yaml_file.path());
 
     cmd.assert().success();
     cmd.assert()
@@ -463,9 +449,10 @@ fn test_run_ctx_aware_group_policy() {
         ),
         ..Default::default()
     };
-    let crd_file = tempfile::NamedTempFile::new().expect("cannot create temp file for CRD");
+    let yaml_file =
+        tempfile::NamedTempFile::with_suffix(".yml").expect("cannot create temp file for CRD");
     std::fs::write(
-        crd_file.path(),
+        yaml_file.path(),
         serde_yaml::to_string(&crd).expect("cannot serialize CRD"),
     )
     .expect("cannot write CRD to file");
@@ -482,8 +469,7 @@ fn test_run_ctx_aware_group_policy() {
         .arg(test_data(request))
         .arg("--replay-host-capabilities-interactions")
         .arg(session_path)
-        .arg("--crd")
-        .arg(crd_file.path());
+        .arg(yaml_file.path());
 
     cmd.assert().success();
     cmd.assert()
