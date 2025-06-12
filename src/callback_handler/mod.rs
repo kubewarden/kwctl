@@ -6,9 +6,10 @@ use tokio::sync::{mpsc, oneshot};
 
 mod proxy;
 
-use crate::callback_handler::proxy::CallbackHandlerProxy;
-use crate::cli::configs::pull_and_run::PullAndRunSettings;
-use crate::run::HostCapabilitiesMode;
+use crate::{
+    callback_handler::proxy::CallbackHandlerProxy,
+    config::{pull_and_run::PullAndRunSettings, HostCapabilitiesMode},
+};
 
 #[derive(Clone)]
 pub(crate) enum ProxyMode {

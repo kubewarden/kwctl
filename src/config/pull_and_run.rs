@@ -14,13 +14,16 @@ use policy_evaluator::policy_fetcher::{
 };
 use tracing::info;
 
-use crate::callback_handler;
-use crate::cli::configs::{
-    sources::remote_server_options,
-    verification::{build_sigstore_trust_root, build_verification_options},
+use crate::{
+    callback_handler,
+    config::{
+        policy_definition::PolicyDefinition,
+        sources::remote_server_options,
+        verification::{build_sigstore_trust_root, build_verification_options},
+        HostCapabilitiesMode,
+    },
+    verify,
 };
-use crate::run::{policy_definition::PolicyDefinition, HostCapabilitiesMode};
-use crate::verify;
 
 #[derive(Default)]
 pub(crate) struct PullAndRunSettings {

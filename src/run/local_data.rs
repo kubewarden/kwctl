@@ -4,8 +4,9 @@ use anyhow::{anyhow, Result};
 use policy_evaluator::{policy_fetcher::PullDestination, policy_metadata::Metadata};
 
 use crate::{
-    backend::has_minimum_kubewarden_version, cli::configs::pull_and_run::PullAndRunSettings, pull,
-    run::policy_definition::PolicyDefinition, verify,
+    backend::has_minimum_kubewarden_version,
+    config::{policy_definition::PolicyDefinition, pull_and_run::PullAndRunSettings},
+    pull, verify,
 };
 
 pub(crate) struct LocalData {

@@ -15,7 +15,7 @@ use tracing_subscriber::{
 };
 
 use crate::{
-    cli::configs::{
+    config::{
         sources::remote_server_options,
         verification::{build_sigstore_trust_root, build_verification_options},
     },
@@ -28,7 +28,9 @@ mod annotate;
 mod backend;
 mod callback_handler;
 mod cli;
+mod command;
 mod completions;
+mod config;
 mod info;
 mod inspect;
 mod load;
@@ -194,13 +196,13 @@ async fn main() -> Result<()> {
             let run_arg = matches
                 .subcommand_matches("run")
                 .expect("run subcommand not found");
-            cli::command::run::exec(run_arg).await
+            cli::run::exec(run_arg).await
         }
         Some("bench") => {
             let bench_arg = matches
                 .subcommand_matches("bench")
                 .expect("bench subcommand not found");
-            cli::command::bench::exec(bench_arg).await
+            cli::bench::exec(bench_arg).await
         }
         Some("annotate") => {
             if let Some(matches) = matches.subcommand_matches("annotate") {

@@ -10,7 +10,7 @@ use policy_evaluator::{
     policy_evaluator::{PolicyEvaluator, PolicySettings, ValidateRequest},
     policy_evaluator_builder::PolicyEvaluatorBuilder,
     policy_group_evaluator::evaluator::PolicyGroupEvaluator,
-    policy_metadata::{ContextAwareResource, Metadata},
+    policy_metadata::{ContextAwareResource, Metadata, PolicyType},
 };
 use tokio::sync::oneshot;
 use tracing::{info, warn};
@@ -18,14 +18,23 @@ use tracing::{info, warn};
 use crate::{
     backend::BackendDetector,
     callback_handler::{CallbackHandler, ProxyMode},
-    cli::configs::pull_and_run::PullAndRunSettings,
-    run::{
-        determine_execution_mode, has_raw_policy_type,
-        local_data::LocalData,
-        policy_definition::{ContextAwareConfiguration, PolicyExecutionConfiguration},
-        HostCapabilitiesMode, PolicyDefinition,
+    config::{
+        policy_definition::{
+            ContextAwareConfiguration, PolicyDefinition, PolicyExecutionConfiguration,
+        },
+        pull_and_run::PullAndRunSettings,
+        HostCapabilitiesMode,
     },
+    run::{local_data::LocalData, policy_execution_mode::determine},
 };
+
+fn has_raw_policy_type(metadata: Option<&Metadata>) -> bool {
+    if let Some(metadata) = metadata {
+        metadata.policy_type == PolicyType::Raw
+    } else {
+        false
+    }
+}
 
 async fn build_callback_handler(
     kube_client_needed: bool,
@@ -80,12 +89,7 @@ impl Evaluator {
                     PolicyExecutionConfiguration::UserDefined(mode) => mode.to_owned(),
                     PolicyExecutionConfiguration::PolicyDefined => {
                         let wasm_path = local_data.local_path(uri)?;
-                        determine_execution_mode(
-                            metadata,
-                            None,
-                            BackendDetector::default(),
-                            wasm_path,
-                        )?
+                        determine(metadata, None, BackendDetector::default(), wasm_path)?
                     }
                 };
 

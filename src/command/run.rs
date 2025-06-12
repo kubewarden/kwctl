@@ -1,24 +1,24 @@
 use anyhow::{anyhow, Result};
-use clap::ArgMatches;
 use tracing::{error, warn};
 
 use crate::{
-    cli::configs::pull_and_run::{parse_policy_definitions, parse_pull_and_run_settings},
+    config::{policy_definition::PolicyDefinition, pull_and_run::PullAndRunSettings},
     run::{evaluator::Evaluator, local_data::LocalData},
 };
 
-pub(crate) async fn exec(matches: &ArgMatches) -> Result<()> {
-    let policy_definitions = parse_policy_definitions(matches)?;
-    let pull_and_run_settings = parse_pull_and_run_settings(matches, &policy_definitions).await?;
-    let local_data = LocalData::new(&policy_definitions, &pull_and_run_settings).await?;
+pub(crate) async fn exec(
+    policy_definitions: &[PolicyDefinition],
+    pull_and_run_settings: &PullAndRunSettings,
+) -> Result<()> {
+    let local_data = LocalData::new(policy_definitions, pull_and_run_settings).await?;
 
     if policy_definitions.len() > 1 {
         warn!("Multiple policies defined inside of the CRD file. All of them will run sequentially using the same request.");
     }
 
-    for policy_definition in &policy_definitions {
+    for policy_definition in policy_definitions {
         let (mut evaluator, callback_handler, shutdown_channel_tx) =
-            Evaluator::new(policy_definition, &pull_and_run_settings, &local_data).await?;
+            Evaluator::new(policy_definition, pull_and_run_settings, &local_data).await?;
 
         // start the callback handler
         let handler = tokio::spawn(async { callback_handler.loop_eval().await });
