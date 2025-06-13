@@ -25,7 +25,7 @@ use crate::{
         pull_and_run::PullAndRunSettings,
         HostCapabilitiesMode,
     },
-    run::{local_data::LocalData, policy_execution_mode::determine},
+    run::{local_data::LocalData, policy_execution_mode::determine_execution_mode},
 };
 
 fn has_raw_policy_type(metadata: Option<&Metadata>) -> bool {
@@ -87,7 +87,12 @@ impl Evaluator {
                     PolicyExecutionConfiguration::UserDefined(mode) => mode.to_owned(),
                     PolicyExecutionConfiguration::PolicyDefined => {
                         let wasm_path = local_data.local_path(uri)?;
-                        determine(metadata, None, BackendDetector::default(), wasm_path)?
+                        determine_execution_mode(
+                            metadata,
+                            None,
+                            BackendDetector::default(),
+                            wasm_path,
+                        )?
                     }
                 };
 

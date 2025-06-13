@@ -6,7 +6,7 @@ use policy_evaluator::{policy_evaluator::PolicyExecutionMode, policy_metadata::M
 use crate::backend::BackendDetector;
 
 /// Determines the policy execution mode based on the provided metadata,
-pub(crate) fn determine(
+pub(crate) fn determine_execution_mode(
     metadata: Option<&Metadata>,
     user_execution_mode: Option<PolicyExecutionMode>,
     backend_detector: BackendDetector,
@@ -124,7 +124,7 @@ mod tests {
             mock_protocol_version_detector_v1,
         );
 
-        let mode = determine(
+        let mode = determine_execution_mode(
             metadata.as_ref(),
             user_execution_mode,
             backend_detector,
@@ -146,7 +146,7 @@ mod tests {
             mock_protocol_version_detector_v1,
         );
 
-        let mode = determine(
+        let mode = determine_execution_mode(
             metadata.as_ref(),
             user_execution_mode,
             backend_detector,
@@ -170,7 +170,7 @@ mod tests {
             mock_protocol_version_detector_v1,
         );
 
-        let mode = determine(
+        let mode = determine_execution_mode(
             metadata.as_ref(),
             user_execution_mode,
             backend_detector,
@@ -210,7 +210,7 @@ mod tests {
                 ),
             };
 
-            let actual = determine(
+            let actual = determine_execution_mode(
                 metadata,
                 user_execution_mode,
                 backend_detector,
@@ -254,7 +254,7 @@ mod tests {
                 ),
             };
 
-            let actual = determine(
+            let actual = determine_execution_mode(
                 metadata,
                 user_execution_mode,
                 backend_detector,
@@ -285,7 +285,7 @@ mod tests {
             mock_protocol_version_detector_v1,
         );
 
-        let actual = determine(
+        let actual = determine_execution_mode(
             metadata,
             user_execution_mode,
             backend_detector,
@@ -305,7 +305,7 @@ mod tests {
             mock_protocol_version_detector_v1,
         );
 
-        let actual = determine(
+        let actual = determine_execution_mode(
             metadata,
             user_execution_mode,
             backend_detector,
