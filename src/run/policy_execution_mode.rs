@@ -33,64 +33,64 @@ pub(crate) fn determine_execution_mode(
     // * If the user does provide the --runtime-mode flag: we use the runtime
     //   the user specified
 
-    match metadata {
-        Some(metadata) => {
-            // metadata is set
-            match user_execution_mode {
-                Some(usermode) => {
-                    // metadata AND user execution mode are set
-                    if usermode != metadata.execution_mode {
-                        Err(anyhow!(
-                        "The policy execution mode specified via CLI flag is different from the one reported inside of policy's metadata. Metadata reports {} instead of {}",
-                        metadata.execution_mode,
-                        usermode)
-                    )
-                    } else {
-                        Ok(metadata.execution_mode)
-                    }
-                }
-                None => {
-                    // only metadata is set
-                    Ok(metadata.execution_mode)
-                }
-            }
-        }
-        None => {
-            // metadata is not set
-            let is_rego_policy = backend_detector.is_rego_policy(wasm_path)?;
-            match user_execution_mode {
-                Some(PolicyExecutionMode::Wasi) => Ok(PolicyExecutionMode::Wasi),
-                Some(PolicyExecutionMode::Opa) => {
-                    if is_rego_policy {
-                        Ok(PolicyExecutionMode::Opa)
-                    } else {
-                        Err(anyhow!("The policy has not been created with Rego, the policy execution mode specified via CLI flag is wrong"))
-                    }
-                }
-                Some(PolicyExecutionMode::OpaGatekeeper) => {
-                    if is_rego_policy {
-                        Ok(PolicyExecutionMode::OpaGatekeeper)
-                    } else {
-                        Err(anyhow!("The policy has not been created with Rego, the policy execution mode specified via CLI flag is wrong"))
-                    }
-                }
-                Some(PolicyExecutionMode::KubewardenWapc) => {
-                    if !is_rego_policy {
-                        Ok(PolicyExecutionMode::KubewardenWapc)
-                    } else {
-                        Err(anyhow!("The policy has been created with Rego, the policy execution mode specified via CLI flag is wrong"))
-                    }
-                }
-                None => {
-                    if is_rego_policy {
-                        Err(anyhow!("The policy has been created with Rego, please specify which Opa runtime has to be used"))
-                    } else {
-                        Ok(PolicyExecutionMode::KubewardenWapc)
-                    }
-                }
-            }
+    if let Some(metadata) = metadata {
+        // If metadata is set, we can use it to determine the execution mode
+        return determine_execution_mode_from_metadata(metadata, user_execution_mode);
+    }
+
+    let is_rego_policy = backend_detector.is_rego_policy(wasm_path)?;
+    if let Some(user_execution_mode) = user_execution_mode {
+        // If the user provided an execution mode, we need to verify it
+        return verify_user_provided_execution_mode(user_execution_mode, is_rego_policy);
+    }
+
+    // no metadata and no user execution mode provided, we can only make sure
+    // that the policy is not a Rego one and then default to Kubewarden WAPC
+    if is_rego_policy {
+        return Err(anyhow!("The policy has been created with Rego, please specify which Opa runtime has to be used"));
+    }
+
+    Ok(PolicyExecutionMode::KubewardenWapc)
+}
+
+fn determine_execution_mode_from_metadata(
+    metadata: &Metadata,
+    user_execution_mode: Option<PolicyExecutionMode>,
+) -> Result<PolicyExecutionMode> {
+    match user_execution_mode {
+        Some(usermode) if usermode == metadata.execution_mode => Ok(metadata.execution_mode),
+        Some(usermode) => Err(anyhow!(
+            "The policy execution mode specified via CLI flag is different from the one reported inside of policy's metadata. Metadata reports {} instead of {}",
+            metadata.execution_mode,
+            usermode
+        )),
+        None => Ok(metadata.execution_mode),
+    }
+}
+
+fn verify_user_provided_execution_mode(
+    user_execution_mode: PolicyExecutionMode,
+    is_rego_policy: bool,
+) -> Result<PolicyExecutionMode> {
+    if user_execution_mode == PolicyExecutionMode::OpaGatekeeper
+        || user_execution_mode == PolicyExecutionMode::Opa
+    {
+        if is_rego_policy {
+            return Ok(user_execution_mode);
+        } else {
+            return Err(anyhow!(
+                "The policy has not been created with Rego, the policy execution mode specified via CLI flag is wrong"
+            ));
         }
     }
+
+    if is_rego_policy {
+        return Err(anyhow!(
+            "The policy has been created with Rego, the policy execution mode specified via CLI flag is wrong"
+        ));
+    }
+
+    Ok(user_execution_mode)
 }
 
 #[cfg(test)]
