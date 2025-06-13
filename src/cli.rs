@@ -602,7 +602,7 @@ fn subcommand_bench() -> Command {
             .long("measurement-time")
             .number_of_values(1)
             .value_name("SECONDS")
-            .help("How long the bench ‘should’ run, num_samples is prioritized so benching will take longer to be able to collect num_samples if the code to be benched is slower than this time limit allowed"),
+            .help("How long the bench 'should' run, num_samples is prioritized so benching will take longer to be able to collect num_samples if the code to be benched is slower than this time limit allowed"),
         Arg::new("num_resamples")
             .long("num-resamples")
             .number_of_values(1)
