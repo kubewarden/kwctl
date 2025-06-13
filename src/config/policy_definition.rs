@@ -20,6 +20,7 @@ use crate::utils::new_policy_execution_mode_from_str;
 
 /// Contains the definition of a policy
 /// This can be an individual policy or a group of policies.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum PolicyDefinition {
     /// This is a single policy, could have been defined by a CRD or
     /// could be obtained by consuming the cli-flags provided by the user
@@ -57,6 +58,7 @@ impl fmt::Display for PolicyDefinition {
 
 /// This enum is used to determine how the policy should be executed
 /// by the evaluator (e.g.: waPC, OpaGatekeeper, Opa, WASI,...)
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum PolicyExecutionConfiguration {
     UserDefined(PolicyExecutionMode),
     /// Policies defined by CRDs will always have their execution mode
@@ -66,7 +68,7 @@ pub(crate) enum PolicyExecutionConfiguration {
 
 /// This enum is used to determine how the policy should handle
 /// context-aware resources.
-#[derive(Default, PartialEq, Eq, Debug)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub(crate) enum ContextAwareConfiguration {
     #[default]
     NoAccess,
@@ -76,6 +78,7 @@ pub(crate) enum ContextAwareConfiguration {
 
 /// Represents a member of a policy group, which includes the URI of the policy
 /// and its settings.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct PolicyMember {
     pub uri: String,
     pub settings: PolicyGroupMemberSettings,
@@ -555,45 +558,77 @@ mod tests {
         let policy_definition: PolicyDefinition = PolicyDefinition::try_from(capg)
             .expect("Failed to convert ClusterAdmissionPolicyGroup");
 
-        match policy_definition {
-            PolicyDefinition::Group {
-                id,
-                policy_members,
-                expression,
-                message,
-            } => {
-                assert_eq!(id, name);
-                assert_eq!(expression, expression);
-                assert_eq!(message, message);
+        let expected_policy_definition = PolicyDefinition::Group {
+            id: name.clone(),
+            policy_members: HashMap::from([
+                (
+                    pgm_1_id,
+                    PolicyMember {
+                        uri: pgm_1.module,
+                        settings: PolicyGroupMemberSettings {
+                            settings: PolicySettings::try_from(&pgm_1.settings.0)
+                                .expect("Failed to convert settings for member 1"),
+                            ctx_aware_resources_allow_list: pgm_1_expected_context_aware_resources,
+                        },
+                    },
+                ),
+                (
+                    pgm_2_id.clone(),
+                    PolicyMember {
+                        uri: pgm_2.module,
+                        settings: PolicyGroupMemberSettings {
+                            settings: PolicySettings::try_from(&pgm_2.settings.0)
+                                .expect("Failed to convert settings for member 2"),
+                            ctx_aware_resources_allow_list: BTreeSet::new(),
+                        },
+                    },
+                ),
+            ]),
+            expression,
+            message,
+        };
 
-                assert_eq!(policy_members.len(), 2);
+        assert_eq!(policy_definition, expected_policy_definition);
 
-                let member1 = policy_members.get(&pgm_1_id).expect("Member 1 not found");
-                assert_eq!(member1.uri, pgm_1.module);
-
-                let pgm_1_settings = &member1.settings;
-                assert_eq!(
-                    pgm_1_settings.settings,
-                    PolicySettings::try_from(&pgm_1.settings.0)
-                        .expect("Failed to convert settings for member 1")
-                );
-                assert_eq!(
-                    pgm_1_settings.ctx_aware_resources_allow_list,
-                    pgm_1_expected_context_aware_resources
-                );
-
-                let member2 = policy_members.get(&pgm_2_id).expect("Member 2 not found");
-                assert_eq!(member2.uri, pgm_2.module);
-                let pgm_2_settings = &member2.settings;
-                assert_eq!(
-                    pgm_2_settings.settings,
-                    PolicySettings::try_from(&pgm_2.settings.0)
-                        .expect("Failed to convert settings for member 2")
-                );
-                assert!(pgm_2_settings.ctx_aware_resources_allow_list.is_empty());
-            }
-            _ => panic!("Expected Group PolicyDefinition"),
-        }
+        // match policy_definition {
+        //     PolicyDefinition::Group {
+        //         id,
+        //         policy_members,
+        //         expression,
+        //         message,
+        //     } => {
+        //         assert_eq!(id, name);
+        //         assert_eq!(expression, expression);
+        //         assert_eq!(message, message);
+        //
+        //         assert_eq!(policy_members.len(), 2);
+        //
+        //         let member1 = policy_members.get(&pgm_1_id).expect("Member 1 not found");
+        //         assert_eq!(member1.uri, pgm_1.module);
+        //
+        //         let pgm_1_settings = &member1.settings;
+        //         assert_eq!(
+        //             pgm_1_settings.settings,
+        //             PolicySettings::try_from(&pgm_1.settings.0)
+        //                 .expect("Failed to convert settings for member 1")
+        //         );
+        //         assert_eq!(
+        //             pgm_1_settings.ctx_aware_resources_allow_list,
+        //             pgm_1_expected_context_aware_resources
+        //         );
+        //
+        //         let member2 = policy_members.get(&pgm_2_id).expect("Member 2 not found");
+        //         assert_eq!(member2.uri, pgm_2.module);
+        //         let pgm_2_settings = &member2.settings;
+        //         assert_eq!(
+        //             pgm_2_settings.settings,
+        //             PolicySettings::try_from(&pgm_2.settings.0)
+        //                 .expect("Failed to convert settings for member 2")
+        //         );
+        //         assert!(pgm_2_settings.ctx_aware_resources_allow_list.is_empty());
+        //     }
+        //     _ => panic!("Expected Group PolicyDefinition"),
+        // }
     }
 
     #[test]
