@@ -41,7 +41,7 @@ async fn build_callback_handler(
     cfg: &PullAndRunSettings,
     shutdown_channel_rx: oneshot::Receiver<()>,
 ) -> Result<CallbackHandler> {
-    let client = if !kube_client_needed {
+    let kube_client = if !kube_client_needed {
         None
     } else {
         match &cfg.host_capabilities_mode {
@@ -49,8 +49,6 @@ async fn build_callback_handler(
             _ => Some(build_kube_client().await?),
         }
     };
-    let kube_client = client;
-
     CallbackHandler::new(cfg, kube_client, shutdown_channel_rx).await
 }
 
