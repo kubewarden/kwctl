@@ -136,7 +136,7 @@ Resources:
 ```console
 kwctl run \
   -r test_data/ingress.json \
-  --crd policy.yaml
+  policy.yaml
 ```
 
 The YAML file can contain any of the Kubewarden CRDs, including policy groups.
