@@ -84,6 +84,10 @@ fn write_tmp_yaml_file(data: &[u8]) -> tempfile::NamedTempFile {
 fn test_policies_empty() {
     let tempdir = tempdir().unwrap();
 
+    // Remove the policy store directory if it exists to ensure a clean state
+    let store_path = tempdir.path().join(".local/share/kwctl/store");
+    let _ = std::fs::remove_dir_all(&store_path);
+
     let mut cmd = setup_command(tempdir.path());
     cmd.arg("policies");
 
