@@ -142,6 +142,7 @@ A YAML file may contain multiple Custom Resource declarations. In this case, `kw
 * `--settings-json <VALUE>` — JSON string containing the settings for this policy
 * `-s`, `--settings-path <PATH>` — File containing the settings for this policy
 * `--sources-path <PATH>` — YAML file holding source information (https, registry insecure hosts, custom CA's...)
+* `--trust-config <PATH>` — JSON-formatted file conforming to the ClientTrustConfig message in the Sigstore protobuf specs. This file configures the entire Sigstore instance state, including the URIs used to access the CA and artifact transparency services as well as the cryptographic root of trust itself
 * `-a`, `--verification-annotation <KEY=VALUE>` — Annotation in key=value format. Can be repeated multiple times
 * `--verification-config-path <PATH>` — YAML file holding verification config information (signatures, public keys...)
 * `-k`, `--verification-key <PATH>` — Path to key used to verify the policy. Can be repeated multiple times
@@ -262,6 +263,7 @@ Pulls a Kubewarden policy from a given URI
 * `--github-repo <VALUE>` — GitHub repository expected in the certificates generated in CD pipelines
 * `-o`, `--output-path <PATH>` — Output file. If not provided will be downloaded to the Kubewarden store
 * `--sources-path <PATH>` — YAML file holding source information (https, registry insecure hosts, custom CA's...)
+* `--trust-config <PATH>` — JSON-formatted file conforming to the ClientTrustConfig message in the Sigstore protobuf specs. This file configures the entire Sigstore instance state, including the URIs used to access the CA and artifact transparency services as well as the cryptographic root of trust itself
 * `-a`, `--verification-annotation <KEY=VALUE>` — Annotation in key=value format. Can be repeated multiple times
 * `--verification-config-path <PATH>` — YAML file holding verification config information (signatures, public keys...)
 * `-k`, `--verification-key <PATH>` — Path to key used to verify the policy. Can be repeated multiple times
@@ -371,6 +373,7 @@ A YAML file may contain multiple Custom Resource declarations. In this case, `kw
 * `--settings-json <VALUE>` — JSON string containing the settings for this policy
 * `-s`, `--settings-path <PATH>` — File containing the settings for this policy
 * `--sources-path <PATH>` — YAML file holding source information (https, registry insecure hosts, custom CA's...)
+* `--trust-config <PATH>` — JSON-formatted file conforming to the ClientTrustConfig message in the Sigstore protobuf specs. This file configures the entire Sigstore instance state, including the URIs used to access the CA and artifact transparency services as well as the cryptographic root of trust itself
 * `-a`, `--verification-annotation <KEY=VALUE>` — Annotation in key=value format. Can be repeated multiple times
 * `--verification-config-path <PATH>` — YAML file holding verification config information (signatures, public keys...)
 * `-k`, `--verification-key <PATH>` — Path to key used to verify the policy. Can be repeated multiple times
@@ -463,6 +466,7 @@ Output a Kubernetes resource manifest
 * `-s`, `--settings-path <PATH>` — File containing the settings for this policy
 * `--sources-path <PATH>` — YAML file holding source information (https, registry insecure hosts, custom CA's...)
 * `--title <VALUE>` — Policy title
+* `--trust-config <PATH>` — JSON-formatted file conforming to the ClientTrustConfig message in the Sigstore protobuf specs. This file configures the entire Sigstore instance state, including the URIs used to access the CA and artifact transparency services as well as the cryptographic root of trust itself
 * `-t`, `--type <VALUE>` — Kubewarden Custom Resource type
 
   Possible values: `ClusterAdmissionPolicy`, `AdmissionPolicy`
@@ -515,6 +519,7 @@ Verify a Kubewarden policy from a given URI using Sigstore
 * `--github-owner <VALUE>` — GitHub owner expected in the certificates generated in CD pipelines
 * `--github-repo <VALUE>` — GitHub repository expected in the certificates generated in CD pipelines
 * `--sources-path <PATH>` — YAML file holding source information (https, registry insecure hosts, custom CA's...)
+* `--trust-config <PATH>` — JSON-formatted file conforming to the ClientTrustConfig message in the Sigstore protobuf specs. This file configures the entire Sigstore instance state, including the URIs used to access the CA and artifact transparency services as well as the cryptographic root of trust itself
 * `-a`, `--verification-annotation <KEY=VALUE>` — Annotation in key=value format. Can be repeated multiple times
 * `--verification-config-path <PATH>` — YAML file holding verification config information (signatures, public keys...)
 * `-k`, `--verification-key <PATH>` — Path to key used to verify the policy. Can be repeated multiple times
