@@ -408,20 +408,15 @@ async fn pull_command(
 
     let verification_options = build_verification_options(matches)?;
     let mut verified_manifest_digest: Option<String> = None;
-    if verification_options.is_some() {
+    if let Some(options) = &verification_options {
         let sigstore_trust_root =
             build_sigstore_trust_root(matches.get_one::<PathBuf>("sigstore-trust-config")).await?;
         // verify policy prior to pulling if keys listed, and keep the
         // verified manifest digest:
         verified_manifest_digest = Some(
-            verify::verify(
-                uri,
-                sources.as_ref(),
-                verification_options.as_ref().unwrap(),
-                sigstore_trust_root.clone(),
-            )
-            .await
-            .map_err(|e| anyhow!("Policy {} cannot be validated\n{:?}", uri, e))?,
+            verify::verify(uri, sources.as_ref(), options, sigstore_trust_root.clone())
+                .await
+                .map_err(|e| anyhow!("Policy {} cannot be validated\n{:?}", uri, e))?,
         );
     }
 
