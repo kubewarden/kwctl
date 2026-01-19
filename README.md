@@ -1,3 +1,10 @@
+> [!IMPORTANT]
+> **Notice:**
+> Starting from release 1.32.0, all code from this repository has been merged into [github.com/kubewarden/kubewarden-controller](https://github.com/kubewarden/kubewarden-controller), which is now a monorepo.
+> Please refer to that repository for future updates and development.
+>
+> **This repository is now archived. Development continues in the new location.**
+
 [![Kubewarden Core Repository](https://github.com/kubewarden/community/blob/main/badges/kubewarden-core.svg)](https://github.com/kubewarden/community/blob/main/REPOSITORIES.md#core-scope)
 [![Stable](https://img.shields.io/badge/status-stable-brightgreen?style=for-the-badge)](https://github.com/kubewarden/community/blob/main/REPOSITORIES.md#stable)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/9180/badge)](https://www.bestpractices.dev/projects/9180)
